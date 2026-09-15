@@ -1,0 +1,27 @@
+# Quarterdeck gates on pull requests. Both checks are language-free: one reads the branch's first
+# commit, the other reads the pull request body. Neither replaces the project's own check chain.
+name: Quarterdeck
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  gates:
+    name: Tests first, evidence block
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: First commit on the branch is failing tests only
+        run: python3 tools/quarterdeck/check-tests-first.py --base "origin/${{ github.base_ref }}"
+
+      - name: Pull request carries every evidence section
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" | python3 tools/quarterdeck/check-pr-evidence.py

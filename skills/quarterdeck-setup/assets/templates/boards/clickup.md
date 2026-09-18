@@ -13,3 +13,6 @@ Through the ClickUp connector in this session. Status names on the board:
 - **Create a task** (only in {{lists}}): `mcp__clickup__createTask` in that list. Never in any
   other list.
 - **Dependencies:** a task is blocked while any task in its `waiting_on` links is not `done`.
+- **The plan:** the list a task sits in is its milestone; the other tasks in that list
+  (`mcp__clickup__searchTasks` filtered by list) are its siblings; its `waiting_on` / `blocking`
+  links are the ordering. There is no plan file — the board is the plan.

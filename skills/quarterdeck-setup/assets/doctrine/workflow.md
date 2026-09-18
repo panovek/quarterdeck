@@ -37,6 +37,7 @@ instructions. The shape is always the same:
 |---|---|---|
 | Architecture, layer boundaries, structural rules | The ADR folder | An ADR is amended, never contradicted in silence |
 | Scope of the change being made right now | The task on the board | What we want, and how, *today* |
+| The plan: milestones, ordering, dependencies, what is next | The board | Lists (or milestones or labels, per board kind) are the milestones, blocking links are the dependencies, statuses are the state. There is no plan file |
 | Product rules, formulas, constants, lexicon | The domain document | The design intent — a PRD, a design document, a spec, an API contract |
 | What currently exists | The code | Evidence of what *is* — never authority for what *should be* |
 
@@ -50,8 +51,8 @@ contradicts the domain document is **a bug report**, not a source conflict.
 **What an agent has in context when it starts.** The agent instruction file (`CLAUDE.md` or
 `AGENTS.md`) and nothing else: the rules, the lexicon, and the one-line ADR digest. Everything else
 is read on demand — the sections of the domain document a task cites, the full ADR whose area a
-task touches, the code in the area, this document when a skill points at a section. The agent
-notes are never loaded; they are a log for a person.
+task touches, the code in the area, the task's neighbours on the board, this document when a
+skill points at a section. The agent notes are never loaded; they are a log for a person.
 
 **On contradiction, stop.** If two sources disagree within their own domains, or a task's
 specification cannot be reconciled with an ADR or the domain document, the agent stops, reports
@@ -130,12 +131,13 @@ description on the board.
 | **Open questions** | Must be empty for the task to leave `refine` |
 | **Risk** | Optional. Reserved for a later rule about which tasks need closer review |
 
-## 5. `/grill-task`
+## 5. `/refine`
 
 A human-present skill. It turns a conversation into a specification.
 
-1. Read the task, the sections of the domain document it touches, relevant ADRs, and the code
-   that already exists in the area.
+1. Read the task and its place on the board — its list or milestone, its blocking and blocked-by
+   links, its siblings in the milestone — then the sections of the domain document it touches,
+   relevant ADRs, and the code that already exists in the area.
 2. Grill: put the unresolved decisions to the owner one round at a time, recommending an answer
    for each.
 3. Where a decision is architectural, draft the ADR. Where it changes a rule or a constant, draft
@@ -166,9 +168,10 @@ The agent's loop, in order:
 4. Implement.
 5. Run the check command — typecheck, lint, format, dead code, tests, whatever the project chains.
 6. Run the mutation command where the task touches the mutation-tested area (section 9).
-7. **Architecture.** If the project keeps an architecture record, review it against the change and
-   update it if the change warrants it. This step is unconditional; its *conclusion* may be "no
-   change", which is then stated in the pull request.
+7. **Architecture.** If the project keeps an architecture record, review it against the change
+   and, through the project's diagram tool with the diagram's record from the registry, update it
+   if the change warrants it. This step is unconditional; its *conclusion* may be "no change",
+   which is then stated in the pull request. See section 10.
 8. Open the pull request, fill the evidence block (section 8), comment the pull request link on
    the task, and move it to `in review`.
 
@@ -221,7 +224,7 @@ The body of every agent pull request, so that reviewing it requires running noth
 - dead code — clean
 
 ## Architecture
-No change. / Updated: <what changed>.
+No change. / Updated: `+ component <name>`, `+ relationship <a> → <b>` — see the image and the record diff.
 
 ## Decisions made (tier 2)
 - <choice> — chose X over Y because <reason>.
@@ -278,13 +281,39 @@ of a fake test.
 ## 10. The architecture record
 
 Optional, and narrow when present: see at a glance how the system fits together, and what a pull
-request did to it. The record should be text — a JSON or YAML map of components and
-relationships, or a C4 model — so that a diff reads as `+ component`, `+ relationship`. If the
-project renders images from it, the images are committed and the renderer's HTML is not.
+request did to it. Nothing more is bought, and nothing more is paid for. A project that keeps one
+sets `commands.arch` in `.quarterdeck.json` to the command that renders it; a project that keeps
+none leaves it empty and section 6 step 7 reduces to the sentence in the pull request.
 
-When nothing changed, nothing is regenerated and the pull request says "no architecture change".
-If the record changed structurally and no ADR was added or amended, the pull request must say why
-not.
+**The record is text.** A JSON or YAML map of components and relationships, or a C4 model —
+committed, so that a diff reads as `+ component`, `+ relationship`, reviewable as text. If the
+project renders images from it, one image per diagram is committed — the current picture — and
+the renderer's HTML is not. **No per-pull-request delta image is produced.** The text diff of the
+record says what changed and the reviewer's image diff of the committed picture shows it; a third
+artefact saying the same thing is noise.
+
+**The recommended shape is a one-record registry.** Beside the record lives a registry file —
+`diagrams.md` — with one record per diagram: the file name and two or three plain sentences saying
+what the owner wants to see on it. That record *is* the prompt: an agent hands it to the project's
+diagram tool (Archify, for example — any renderer that takes a prompt and writes the record will
+do) and authors the file under the contract in the folder's `README.md`, which holds every fixed
+rule once — evidence first, one question per diagram, semantic labels, stable ids kept on refresh,
+the project's lexicon, no subtitle, the node ceiling — so that no record has to repeat one. The
+registry is the only list of diagrams there is: to sharpen a picture, edit its sentences; to add
+one, add a record; to remove one, delete the record and its files. Nothing in the workflow or the
+tooling enumerates the diagrams, so the list changes without anything else changing. A starter
+registry ships with the setup skill as `templates/diagrams.md`.
+
+**Only the architecture diagram is in the per-task loop.** Every other record in the registry —
+behaviour drawn as a lifecycle, a sequence, a dataflow, a workflow — is refreshed deliberately, on
+request, when the thing it draws changes. They change rarely; putting them under a per-task rule
+buys nothing.
+
+**What counts as a structural change** is read from the record's diff: a component or relationship
+added or removed, a boundary moved, or a planned (dashed) relationship made real. A box that
+merely moved is not one. When nothing changed, nothing is regenerated and the pull request says
+"no architecture change" — an unchanged image committed on every pull request is noise. If the
+record changed structurally and no ADR was added or amended, the pull request must say why not.
 
 ## 11. When a pull request is rejected
 
@@ -311,13 +340,17 @@ Recorded so that they are not silently reopened.
   milestone shows whether it is needed.
 - **Parallel agents.** One task at a time. With human review on every merge, N agents produce N
   pull requests queued on one reviewer, and every merge invalidates the others' base.
+- **A plan file mirrored from the board.** Rejected shape: two mirrors drift, and the board is
+  where statuses, dependencies and comments already live. The board is the plan — section 2.
+- **A per-pull-request delta image of the architecture record.** Rejected shape: the text diff of
+  the record and the image diff of the committed picture already say what changed — section 10.
 
 ## Appendix — which mechanism answers which failure mode
 
 | Failure mode | Mechanism |
 |---|---|
 | 1 · Building on undecided ground | Definition of ready (4); `refine` as a real status (3); escalation triggers (5); tier 3 stops mid-task (6) |
-| 2 · Losing the thread | Specification approved before code exists (5); ADR required for architectural choices (2, 10); the architecture record and its per-pull-request verdict (10); the tier-2 decisions log (8) |
+| 2 · Losing the thread | Specification approved before code exists (5); ADR required for architectural choices (2, 10); the architecture record, redrawn from its registry record, and its per-pull-request verdict (10); the tier-2 decisions log (8) |
 | 3 · Invented work | The test-only-module check (9); dead-code tools (9); the *Out of scope* field (4); "coverage is never a reason to create a consumer" (9) |
 | 4 · Tests that prove nothing | Mutation score, not coverage (9); table assertions and golden runs (9); tests-first commit as branch evidence (6, 9); the ban on weakening a test (6) |
 | 5 · Silent improvisation when blocked | `waiting_on` checked in pre-flight (4); the three tiers (6); the retry budget (6); agents may file into the agent-writable lists, and nowhere else (3) |

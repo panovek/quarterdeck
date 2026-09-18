@@ -25,3 +25,6 @@ waiting_on: [<id>, <id>]
 - **Create a task** (only in {{lists}}): a new file with `list:` set to that name and
   `status: open`. Never with any other `list:` value.
 - **Dependencies:** a task is blocked while any id in `waiting_on` has a status other than `done`.
+- **The plan:** `list:` in the front matter is the task's milestone; the other files in
+  `{{docs_dir}}/board/` with the same `list:` are its siblings; `waiting_on` is the ordering. There
+  is no plan file — the board is the plan.

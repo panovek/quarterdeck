@@ -1,9 +1,9 @@
 ---
-name: grill-task
+name: refine
 description: Refine one task on the board into an implementable specification through a relentless interview, then write it back to the board. Use when asked to grill, refine or specify a task, or when a task must be made ready for an agent.
 ---
 
-# Grill a task
+# Refine a task
 
 A human-present skill. It turns a conversation into a specification an agent can implement without
 guessing. Nothing here is implemented; this skill produces prose only.
@@ -30,6 +30,10 @@ report, naming both sides — never to resolve by choosing.
 Facts are yours to find; only decisions belong to the user. Never ask what you can read.
 
 - The task itself, including its subtasks, comments and dependencies.
+- Its place on the board — **the board is the plan.** The list the task sits in (or its
+  milestone or label, per board kind — `<docs_dir>/board.md` says where) is its milestone; its
+  blocking and blocked-by links are its dependencies; the sibling tasks in the same list say what
+  the milestone is building around it. There is no plan file to read instead.
 - Every source the task touches: the sections of the domain document, and the code that already
   exists in the area. For ADRs, the digest in the agent instructions is already in context; open
   a full record in `<adr_dir>/` only when the task touches its area.

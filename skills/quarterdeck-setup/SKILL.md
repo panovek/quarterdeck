@@ -17,10 +17,11 @@ resolve it from this skill's own path before you start.
 assets/
   VERSION                     the version you are installing
   doctrine/                   workflow.md, task-template.md, agent-notes.md, adr-README.md, adr-template.md
-  skills/                     grill-task/, implement/ — installed into the project's .claude/skills/
+  skills/                     refine/, implement/ — installed into the project's .claude/skills/
   hooks/guard-main.py         the PreToolUse guard; reads .quarterdeck.json at runtime
   tools/                      check-tests-first.py, check-pr-evidence.py, test-only-modules.py, doctor.py
-  templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md
+  templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md,
+                              diagrams.md — a starter diagram registry, offered in Step 11, never installed by default
 ```
 
 ## Modes
@@ -113,7 +114,7 @@ Ask, in this order, skipping nothing:
 8. **Agent signature** for `Co-Authored-By:` (default `Claude <noreply@anthropic.com>`).
 9. **CI**: write the GitHub Actions workflow? (default yes when `.github/workflows/` exists; for
    another CI system, see Step 9).
-10. **Sources of truth** — confirm or edit the three default rows, and add any domain the
+10. **Sources of truth** — confirm or edit the four default rows, and add any domain the
     project has that these do not cover (a data model document, a UI spec, a compliance
     document). The code row is added by you and is not up for discussion:
 
@@ -121,6 +122,7 @@ Ask, in this order, skipping nothing:
     |---|---|---|
     | Architecture, layer boundaries, structural rules | `` `<adr_dir>/` `` | An ADR is amended, never contradicted in silence |
     | Scope of the change being made right now | The task on `<board name>` | What we want, and how, *today* |
+    | The plan: milestones, ordering, dependencies, what is next | The `<board name>` board | Lists (or milestones or labels — `<docs_dir>/board.md` says which for this board) are the milestones, blocking links are the dependencies, statuses are the state. There is no plan file |
     | Product rules, formulas, constants, lexicon | `` `<domain_doc>` `` — or **none yet** — nothing owns intent; failure modes 1 and 2 are half-answered until something does | The design intent |
 
 **Validate.** Every answer that is a path exists, or the owner has said it will. Every command
@@ -151,7 +153,7 @@ every project and `doctor` diffs them against `$QD`.
 |---|---|
 | `doctrine/workflow.md` | `<docs_dir>/workflow.md` |
 | `doctrine/task-template.md` | `<docs_dir>/task-template.md` |
-| `skills/grill-task/SKILL.md` | `.claude/skills/grill-task/SKILL.md` |
+| `skills/refine/SKILL.md` | `.claude/skills/refine/SKILL.md` |
 | `skills/implement/SKILL.md` | `.claude/skills/implement/SKILL.md` |
 | `hooks/guard-main.py` | `.claude/hooks/guard-main.py` |
 | `tools/check-tests-first.py` | `tools/quarterdeck/check-tests-first.py` |
@@ -193,8 +195,9 @@ once; never overwritten, by you or by any later upgrade.
 
 For a tracker none of the four templates covers — Linear, Jira, Notion, Trello through a connector
 — start from `generic.md` and replace each bullet's verb with the actual tool call available in
-this session (read, update status, update description, comment, create in list). Keep the six
-bullets; the skills rely on those six operations and nothing else.
+this session (read, update status, update description, comment, create in list). Keep the seven
+bullets: the skills rely on those six operations, and on the seventh — where the milestone, the
+siblings and the ordering live, because the board is the plan — and nothing else.
 
 **Validate.** `grep -c '{{' <docs_dir>/board.md` prints `0`. `doctor` — **Rendered files**: the
 board file names every board status and every list.
@@ -299,6 +302,11 @@ silence.
    test-only module, one mutant, one boundary violation, and watch each fail.
 5. Put one small task through `open → refine → todo → in progress → in review → done`. Nothing is
    installed until that has happened once.
+6. Only when `commands.arch` is set: the recommended shape of the record is workflow.md section
+   10 — a one-record registry, `diagrams.md` beside the record, with the folder's `README.md` as
+   the authoring contract. Offer to copy `$QD/templates/diagrams.md` there as a starter, with the
+   example record edited to the project's file name. It is a seed: written once if asked, never
+   touched by an upgrade, never checked by `doctor`.
 
 Do not commit anything.
 
@@ -311,17 +319,25 @@ the owner to run `npx skills update quarterdeck-setup` first and stop; a newer `
 precondition.
 
 1. Read the manifest; note its `quarterdeck` version. Run `doctor` and collect the **Shipped
-   files** failures — those are the files that changed upstream, or were edited locally.
-2. For each: `diff` the project's copy against `$QD`'s. If the project copy carries a local edit
+   files** failures — those are the files that changed upstream, or were edited locally, or are
+   installed under a path this version no longer uses (reported as *stale*).
+2. **Renamed paths first.** `doctor` names each stale path and its replacement. Move the
+   directory — `git mv .claude/skills/grill-task .claude/skills/refine` for the 0.3.0 rename —
+   so that a local edit travels with it, then treat the moved file as any other in the next step.
+   Nothing may remain at the old path: two skills with one job is exactly the ambiguity the
+   rename removes.
+3. For each: `diff` the project's copy against `$QD`'s. If the project copy carries a local edit
    (the owner will recognise it), **stop for that file** and propose moving the edit upstream —
    a local edit to a shipped file is lost at the next upgrade by design. Otherwise overwrite.
-3. If `$QD/templates/claude-block.md` or the board template differs from what the project's
+4. If `$QD/templates/claude-block.md` or the board template differs from what the project's
    rendered files reflect, re-run Steps 6 and 7 and show the owner the diff of the rendered
    result before writing it. Never touch text outside the block.
-4. If the manifest schema gained a key (compare against the [reference](#reference-the-manifest)),
-   ask for its value the way Step 2 would, and add it.
-5. Set `quarterdeck` in the manifest to `$QD/VERSION`.
-6. `doctor` exits `0`. Show `git status --short`. Do not commit.
+5. If the manifest schema gained a key (compare against the [reference](#reference-the-manifest)),
+   ask for its value the way Step 2 would, and add it. If the default `sources` rows gained one
+   — 0.3.0 added *The plan* — offer it the way Step 2 question 10 would; a row the owner accepts
+   goes into the manifest and the block is re-rendered.
+6. Set `quarterdeck` in the manifest to `$QD/VERSION`.
+7. `doctor` exits `0`. Show `git status --short`. Do not commit.
 
 Seeded files are never touched by an upgrade. If a seed's template changed upstream, tell the
 owner what changed and leave the merge to them.
@@ -336,7 +352,7 @@ end says which are answered mechanically and which only by prose). Change nothin
 
 ```json
 {
-  "quarterdeck": "0.2.0",
+  "quarterdeck": "0.3.0",
   "main_branch": "main",
   "task_prefix": "task/",
   "docs_dir": "docs/workflow",
@@ -366,6 +382,7 @@ end says which are answered mechanically and which only by prose). Change nothin
   "sources": [
     {"domain": "Architecture, layer boundaries, structural rules", "owner": "`docs/adr/`", "notes": "An ADR is amended, never contradicted in silence"},
     {"domain": "Scope of the change being made right now", "owner": "The task on GitHub Issues", "notes": "What we want, and how, *today*"},
+    {"domain": "The plan: milestones, ordering, dependencies, what is next", "owner": "The GitHub Issues board", "notes": "`list:` labels are the milestones, `waiting_on:` lines are the dependencies, `status:` labels are the state. There is no plan file"},
     {"domain": "Product rules, formulas, constants, lexicon", "owner": "`docs/prd.md`", "notes": "The design intent"}
   ]
 }

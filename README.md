@@ -45,19 +45,19 @@ that cannot be made executable are named as such and placed where they will be r
 ```mermaid
 flowchart TD
     idea([An idea lands on the board as open])
-    grill["/grill-task<br/>The agent reads every source it can, then interviews you<br/>one round at a time. Architectural answers become ADR drafts;<br/>rule changes become edits to the domain document."]
+    refine["/refine<br/>The agent reads every source it can, then interviews you<br/>one round at a time. Architectural answers become ADR drafts;<br/>rule changes become edits to the domain document."]
     approve{{"You approve the specification<br/>— the last gate before code"}}
     impl["/implement<br/>pre-flight · task branch · failing tests first · implement ·<br/>check chain · mutation score · pull request with evidence block"]
     review{{"You read the diff<br/>and merge by hand"}}
     notes["Wrong even though the spec was approved?<br/>One line in agent-notes.md. What recurs becomes a rule."]
 
-    idea --> grill
-    grill --> approve
-    approve -- "not yet" --> grill
+    idea --> refine
+    refine --> approve
+    approve -- "not yet" --> refine
     approve -- "approved: todo" --> impl
-    impl -- "a question only you can answer:<br/>back to refine" --> grill
+    impl -- "a question only you can answer:<br/>back to refine" --> refine
     impl -- "in review" --> review
-    review -- "wrong approach" --> grill
+    review -- "wrong approach" --> refine
     review -- "merged: done" --> notes
 ```
 
@@ -120,7 +120,7 @@ stateDiagram-v2
 | The board procedures | `docs/workflow/board.md` | How an agent reads, moves, comments on and creates a task on *your* board — rendered for ClickUp, GitHub Issues, Markdown files, or any tracker reachable from the session |
 | The agent notes | `docs/workflow/agent-notes.md` | A log of rule gaps found by rejected work. Read by a person at milestone boundaries |
 | ADR seed | `docs/adr/` | A README and a template, if the folder was empty |
-| `/grill-task` | `.claude/skills/grill-task/` | Turns a conversation into a specification and writes it to the board on your word |
+| `/refine` | `.claude/skills/refine/` | Turns a conversation into a specification and writes it to the board on your word |
 | `/implement` | `.claude/skills/implement/` | Pre-flight, branch, tests first, implement, verify, architecture verdict, pull request with evidence |
 | The hook | `.claude/hooks/guard-main.py` | Refuses `git push` to the main branch, merges, rebases, force-pushes and `gh pr merge` |
 | Tests-first check | `tools/quarterdeck/check-tests-first.py` | Fails a pull request whose first commit touches anything but test files |
@@ -225,6 +225,7 @@ part of the agent's instructions:
 |---|---|
 | Architecture, layer boundaries, structural rules | The ADR folder |
 | Scope of the change being made right now | The task on the board |
+| The plan: milestones, ordering, dependencies, what is next | The board — lists are milestones, blocking links are dependencies, statuses are the state. There is no plan file |
 | Product rules, formulas, constants, lexicon | The domain document — your PRD, design document, spec or API contract |
 | What currently exists | The code — evidence of what *is*, never authority for what *should be* |
 
@@ -265,7 +266,7 @@ gives you the import graph to apply it to.
 
 - It does not run agents, orchestrate them, or run more than one. One task at a time; one human
   reads one diff.
-- It does not write specifications for you. `/grill-task` asks; you decide.
+- It does not write specifications for you. `/refine` asks; you decide.
 - It does not install language tools. It tells you which ones and where they go.
 - It does not configure the board. Statuses and lists are yours to create; the skills only move
   tasks between them.

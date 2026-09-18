@@ -32,7 +32,8 @@ because no tool can enforce them — they hold only if they are read.
 
 The check chain is `{{check}}`{{#mutation}}; mutation testing is `{{mutation}}`{{/mutation}}.
 The board is {{board_name}}; how to read, move and create tasks on it is
-[{{docs_dir}}/board.md]({{docs_dir}}/board.md). The task template is
+[{{docs_dir}}/board.md]({{docs_dir}}/board.md). **The board is also the plan** — milestones,
+ordering, dependencies and what is next live there, and there is no plan file. The task template is
 [{{template_path}}]({{template_path}}). Everything project-specific — branches, commands, test
 globs, lists — is bound in `.quarterdeck.json`. Decisions are recorded in `{{adr_dir}}/`; their
 one-line digest belongs directly below this block.

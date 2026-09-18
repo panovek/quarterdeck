@@ -12,7 +12,8 @@ What it verifies, in order:
   1. `.quarterdeck.json` parses and carries every field the hook, the checks and the skills read.
   2. Every file Quarterdeck ships unchanged — doctrine, skills, hook, checks, CI — is byte-identical
      to this version's copy. A difference is either a local edit that belongs upstream or an
-     outdated install; either way the fix is the setup skill's upgrade mode.
+     outdated install; either way the fix is the setup skill's upgrade mode. A path an earlier
+     version installed under another name is reported as stale until it is moved.
   3. Seeded files (logs, ADR seeds, the pull request template) exist. They are never compared.
   4. The two files the setup skill renders — the board procedures and the agent-instruction
      block — exist and state the facts the manifest holds. They are fact-checked, not diffed.
@@ -58,7 +59,7 @@ def static_files(manifest: dict) -> dict:
     files = {
         f'{docs}/workflow.md': 'doctrine/workflow.md',
         f'{docs}/task-template.md': 'doctrine/task-template.md',
-        '.claude/skills/grill-task/SKILL.md': 'skills/grill-task/SKILL.md',
+        '.claude/skills/refine/SKILL.md': 'skills/refine/SKILL.md',
         '.claude/skills/implement/SKILL.md': 'skills/implement/SKILL.md',
         '.claude/hooks/guard-main.py': 'hooks/guard-main.py',
         'tools/quarterdeck/check-tests-first.py': 'tools/check-tests-first.py',
@@ -68,6 +69,13 @@ def static_files(manifest: dict) -> dict:
     if manifest.get('ci'):
         files['.github/workflows/quarterdeck.yml'] = 'templates/ci/quarterdeck.yml'
     return files
+
+
+# Installed path an earlier version used → the path this version installs instead. The upgrade
+# mode of the setup skill moves the directory so that a local edit survives the rename.
+STALE = {
+    '.claude/skills/grill-task/SKILL.md': '.claude/skills/refine/SKILL.md',  # renamed in 0.3.0
+}
 
 
 def seeded_files(manifest: dict) -> list:
@@ -153,6 +161,9 @@ def main() -> None:
             r.fail(f'{installed} differs from quarterdeck {this} — outdated, or a local edit that belongs upstream')
         else:
             r.ok(installed)
+    for old, new in STALE.items():
+        if os.path.isfile(os.path.join(target, old)):
+            r.fail(f'{old} is stale: quarterdeck {this} installs it as {new}; move the directory (upgrade mode) and delete the old one')
     for name in ('check-tests-first.py', 'check-pr-evidence.py', 'test-only-modules.py'):
         full = os.path.join(target, 'tools', 'quarterdeck', name)
         if os.path.isfile(full) and not os.access(full, os.X_OK):

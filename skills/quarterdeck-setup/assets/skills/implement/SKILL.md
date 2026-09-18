@@ -97,11 +97,22 @@ assertion three times is being stuck — and the next attempt is where a test ge
 
 Unconditional step, whatever the task was.
 
-**The project keeps an architecture record** (`commands.arch` is set). Review the record against
-the change and decide whether this change alters it — a component added or removed, a
-relationship added or removed, a boundary moved. *No:* say so in the pull request; regenerate
-nothing. *Yes:* update the record, run `commands.arch`, commit what it produces. **If the change
-is structural and no ADR was added or amended, the pull request must say why not.**
+**The project keeps an architecture record** (`commands.arch` is set). Read the architecture
+diagram's record and decide whether this change alters it: a component or relationship added or
+removed, a boundary moved, or a planned (dashed) relationship the task just made real is a
+**structural** change; a box that merely moved is not. The other diagrams in the folder, if any,
+are refreshed only on request, never here.
+
+*No:* say so in the pull request; regenerate nothing.
+
+*Yes:* update the record through the project's diagram tool, never by hand. If the project keeps
+a registry (`diagrams.md` beside the record — workflow section 10), take the architecture
+diagram's record from it and add one sentence saying what this task added, removed or made real,
+in the words of the specification's *Scope*; the folder's `README.md` is the contract the file is
+authored under. Then run `commands.arch` and commit the record and the image it renders. Read the
+record's diff before committing — the pull request states each structural change in the words of
+that diff. **If the change is structural and no ADR was added or amended, the pull request must
+say why not.**
 
 **The project keeps no architecture record** (`commands.arch` is empty). If the change adds a
 layer, a boundary or a relationship between layers that an ADR describes, the pull request says so

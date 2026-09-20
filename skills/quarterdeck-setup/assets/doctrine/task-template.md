@@ -63,7 +63,7 @@ If a criterion genuinely cannot be expressed that way, the task is not ready —
 `refine`, or the criterion is dropped and named in Out of scope.
 
 **Verification** is the exact command list the agent runs before requesting review. It exists so
-the pull request's evidence block can be filled without judgement.
+that done is an exit code, not a judgement; CI repeats the commands.
 
 **Open questions** must read `none` for the task to leave `refine`. Anything else here is the
 reason it cannot.

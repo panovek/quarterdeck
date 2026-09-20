@@ -81,7 +81,7 @@ Who may move what:
 | `refine → todo` | **The owner. Approving a specification is the last gate before code** | An agent, on instruction: it writes the refined content into the task in the template's shape, then moves the status |
 | `refine → open` | The owner, when refining is not finished | An agent, on instruction: it records what was settled and what remains open, then moves the status back |
 | `todo → in progress` | Agent | Agent |
-| `in progress → in review` | Agent, when the pull request is open and the evidence block is filled | Agent |
+| `in progress → in review` | Agent, when the pull request is open and its body written (section 8) | Agent |
 | `in progress → refine` | Agent, when a question it may not answer surfaces (section 6) | Agent |
 | `in review → done` | The owner, on merge | The owner |
 | anything `→ closed` | The owner only | The owner only |
@@ -170,10 +170,10 @@ The agent's loop, in order:
 6. Run the mutation command where the task touches the mutation-tested area (section 9).
 7. **Architecture.** If the project keeps an architecture record, review it against the change
    and, through the project's diagram tool with the diagram's record from the registry, update it
-   if the change warrants it. This step is unconditional; its *conclusion* may be "no change",
-   which is then stated in the pull request. See section 10.
-8. Open the pull request, fill the evidence block (section 8), comment the pull request link on
-   the task, and move it to `in review`.
+   if the change warrants it. This step is unconditional; its *conclusion* may be "no change", in
+   which case nothing is regenerated and nothing is said. See section 10.
+8. Open the pull request with the body of section 8, comment the pull request link on the task,
+   and move it to `in review`.
 
 ### What the agent may decide
 
@@ -205,26 +205,21 @@ where it starts weakening the test to make the suite green.
 - **Merging is the owner's**, followed by deleting the branch. An agent never merges, never
   pushes to the main branch, never rebases and never force-pushes.
 
-## 8. The pull request evidence block
+## 8. The pull request body
 
-The body of every agent pull request, so that reviewing it requires running nothing.
-`tools/quarterdeck/check-pr-evidence.py` fails a pull request whose body lacks a section.
+The evidence is not in the body. The diff shows what files changed, the image diff of the
+architecture record shows what the architecture did, and the CI check on the pull request runs
+the check command and the mutation score. The body says what the diff *means* — the part no tool
+can show — and nothing a tool already shows. `tools/quarterdeck/check-pr-body.py` fails a pull
+request whose body lacks a section.
 
 ```markdown
 ## Task
 <task-id> · <task name> · <link>
 
-## Acceptance
-- [x] <criterion> — <the command output or number that proves it>
-- [x] <criterion> — <...>
-
-## Verification
-- `<check command>` — pass
-- mutation score — 84.2% (previous 83.1%)
-- dead code — clean
-
-## Architecture
-No change. / Updated: `+ component <name>`, `+ relationship <a> → <b>` — see the image and the record diff.
+## What changed
+<The idea of the change, in a few sentences or a short list: what the system can now do that it
+could not, and how. Not a list of files — the diff is that list.>
 
 ## Decisions made (tier 2)
 - <choice> — chose X over Y because <reason>.
@@ -233,6 +228,12 @@ No change. / Updated: `+ component <name>`, `+ relationship <a> → <b>` — see
 ## Not done
 - <anything deliberately left out, and why>
 ```
+
+Four sections, no more. Acceptance criteria are not restated: they are the tests on the branch,
+and CI ran them. Verification results are not restated: the check on the pull request is the
+result. Architecture is not narrated: an updated architecture image in the diff is the change,
+and its absence is the verdict "no change". If the change is structural and no ADR was added or
+amended, that is a tier-2 decision, and *why not* goes under it.
 
 The tier-2 section is mandatory even when empty. An explicit "none" is information; a missing
 section is ambiguity.
@@ -249,7 +250,7 @@ Each rule sits on the cheapest surface that can actually enforce it.
 | Tests that do not detect a wrong answer | **CI on pull requests** — mutation score on the pure area, threshold ratchets and never falls |
 | Layer boundaries | **Check command** — the language's boundary lint, one rule per ADR |
 | First commit on a branch is failing tests only | **CI on pull requests** — `tools/quarterdeck/check-tests-first.py` |
-| Every evidence section present | **CI on pull requests** — `tools/quarterdeck/check-pr-evidence.py` |
+| The four sections of the pull request body present | **CI on pull requests** — `tools/quarterdeck/check-pr-body.py` |
 | Source precedence, the three tiers, the retry budget, never weakening a test | **Agent instructions** — judgement, not mechanism |
 
 **Invented work — and what actually catches it.** Dead-code tools are not enough: a module
@@ -283,7 +284,9 @@ of a fake test.
 Optional, and narrow when present: see at a glance how the system fits together, and what a pull
 request did to it. Nothing more is bought, and nothing more is paid for. A project that keeps one
 sets `commands.arch` in `.quarterdeck.json` to the command that renders it; a project that keeps
-none leaves it empty and section 6 step 7 reduces to the sentence in the pull request.
+none leaves it empty, and section 6 step 7 reduces to the ADR question: a change that adds a
+layer, a boundary or a relationship between layers with no ADR added or amended is a tier-2
+decision, and why not goes under *Decisions made* (section 8).
 
 **The record is text.** A JSON or YAML map of components and relationships, or a C4 model —
 committed, so that a diff reads as `+ component`, `+ relationship`, reviewable as text. If the
@@ -311,9 +314,11 @@ buys nothing.
 
 **What counts as a structural change** is read from the record's diff: a component or relationship
 added or removed, a boundary moved, or a planned (dashed) relationship made real. A box that
-merely moved is not one. When nothing changed, nothing is regenerated and the pull request says
-"no architecture change" — an unchanged image committed on every pull request is noise. If the
-record changed structurally and no ADR was added or amended, the pull request must say why not.
+merely moved is not one. When nothing changed, nothing is regenerated and nothing is said: an
+untouched image in the diff is the verdict. An unchanged image committed on every pull request is
+noise, and so is a sentence restating what the diff shows. If the record changed structurally and
+no ADR was added or amended, that is a tier-2 decision: why not goes under *Decisions made*
+(section 8).
 
 ## 11. When a pull request is rejected
 
@@ -330,7 +335,7 @@ read: anything that recurs is promoted into the agent instructions, the task tem
 rule. Without this, the same class of rejection repeats forever and the conclusion slowly becomes
 "the workflow does not work" — when what actually failed was a rule nobody wrote down.
 
-## 12. Parked on purpose
+## 12. Parked and dropped
 
 Recorded so that they are not silently reopened.
 
@@ -344,13 +349,19 @@ Recorded so that they are not silently reopened.
   where statuses, dependencies and comments already live. The board is the plan — section 2.
 - **A per-pull-request delta image of the architecture record.** Rejected shape: the text diff of
   the record and the image diff of the committed picture already say what changed — section 10.
+- **The pull request evidence block.** The body restated every acceptance criterion with the
+  output that proved it, listed the verification commands with their results, and narrated the
+  architecture verdict. Dropped on 2026-09-21: the reviewer scrolled past all of it. The tests are
+  on the branch and the CI check runs them, the check on the pull request is the verification,
+  and the image diff of the architecture record is the architecture. What remains is section 8 —
+  the idea, the tier-2 decisions, and what was left out.
 
 ## Appendix — which mechanism answers which failure mode
 
 | Failure mode | Mechanism |
 |---|---|
 | 1 · Building on undecided ground | Definition of ready (4); `refine` as a real status (3); escalation triggers (5); tier 3 stops mid-task (6) |
-| 2 · Losing the thread | Specification approved before code exists (5); ADR required for architectural choices (2, 10); the architecture record, redrawn from its registry record, and its per-pull-request verdict (10); the tier-2 decisions log (8) |
+| 2 · Losing the thread | Specification approved before code exists (5); ADR required for architectural choices (2, 10); the architecture record, redrawn from its registry record, whose image diff is the per-pull-request verdict (10); the tier-2 decisions log (8) |
 | 3 · Invented work | The test-only-module check (9); dead-code tools (9); the *Out of scope* field (4); "coverage is never a reason to create a consumer" (9) |
 | 4 · Tests that prove nothing | Mutation score, not coverage (9); table assertions and golden runs (9); tests-first commit as branch evidence (6, 9); the ban on weakening a test (6) |
 | 5 · Silent improvisation when blocked | `waiting_on` checked in pre-flight (4); the three tiers (6); the retry budget (6); agents may file into the agent-writable lists, and nowhere else (3) |

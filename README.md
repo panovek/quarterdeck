@@ -47,7 +47,7 @@ flowchart TD
     idea([An idea lands on the board as open])
     refine["/refine<br/>The agent reads every source it can, then interviews you<br/>one round at a time. Architectural answers become ADR drafts;<br/>rule changes become edits to the domain document."]
     approve{{"You approve the specification<br/>— the last gate before code"}}
-    impl["/implement<br/>pre-flight · task branch · failing tests first · implement ·<br/>check chain · mutation score · pull request with evidence block"]
+    impl["/implement<br/>pre-flight · task branch · failing tests first · implement ·<br/>check chain · mutation score · pull request that says what the change means"]
     review{{"You read the diff<br/>and merge by hand"}}
     notes["Wrong even though the spec was approved?<br/>One line in agent-notes.md. What recurs becomes a rule."]
 
@@ -80,7 +80,7 @@ stateDiagram-v2
     refine --> todo : owner approves the specification
     todo --> in_progress : /implement passes pre-flight
     todo --> refine : pre-flight fails
-    in_progress --> in_review : pull request open, evidence block filled
+    in_progress --> in_review : pull request open, its body written
     in_progress --> refine : tier-3 question, or retry budget spent
     in_review --> done : owner merges
     in_review --> refine : wrong approach
@@ -107,7 +107,7 @@ stateDiagram-v2
 | No commit, push, merge, rebase or force-push on the main branch; no merging a pull request | **Hook** — refuses the tool call before it runs |
 | A module imported only by tests | **Check command** — `test-only-modules` |
 | First commit on a branch is failing tests only | **CI** — `check-tests-first` |
-| Every section of the evidence block present | **CI** — `check-pr-evidence` |
+| The four sections of the pull request body present | **CI** — `check-pr-body` |
 | Dead files, unused dependencies, layer boundaries, tests that miss wrong answers | **Check command** — your language's tools ([table below](#tools-by-language)) |
 | Source precedence, the three tiers, the retry budget, never weakening a test | **Agent instructions** — judgement, named honestly as prose |
 
@@ -115,19 +115,19 @@ stateDiagram-v2
 
 | Piece | Path in your project | What it does |
 |---|---|---|
-| The doctrine | `docs/workflow/workflow.md` | How a task travels from idea to merged commit: statuses, who may move what, the definition of ready, the three tiers, the retry budget, the evidence block |
+| The doctrine | `docs/workflow/workflow.md` | How a task travels from idea to merged commit: statuses, who may move what, the definition of ready, the three tiers, the retry budget, the pull request body |
 | The task template | `docs/workflow/task-template.md` | The shape a task must have before an agent may touch it, with a worked example |
 | The board procedures | `docs/workflow/board.md` | How an agent reads, moves, comments on and creates a task on *your* board — rendered for ClickUp, GitHub Issues, Markdown files, or any tracker reachable from the session |
 | The agent notes | `docs/workflow/agent-notes.md` | A log of rule gaps found by rejected work. Read by a person at milestone boundaries |
 | ADR seed | `docs/adr/` | A README and a template, if the folder was empty |
 | `/refine` | `.claude/skills/refine/` | Turns a conversation into a specification and writes it to the board on your word |
-| `/implement` | `.claude/skills/implement/` | Pre-flight, branch, tests first, implement, verify, architecture verdict, pull request with evidence |
+| `/implement` | `.claude/skills/implement/` | Pre-flight, branch, tests first, implement, verify, architecture record, a pull request that says what the change means |
 | The hook | `.claude/hooks/guard-main.py` | Refuses `git push` to the main branch, merges, rebases, force-pushes and `gh pr merge` |
 | Tests-first check | `tools/quarterdeck/check-tests-first.py` | Fails a pull request whose first commit touches anything but test files |
-| Evidence check | `tools/quarterdeck/check-pr-evidence.py` | Fails a pull request whose body lacks a section of the evidence block |
+| Pull request body check | `tools/quarterdeck/check-pr-body.py` | Fails a pull request whose body lacks one of the four sections: task, what changed, tier-2 decisions, not done |
 | Test-only-module check | `tools/quarterdeck/test-only-modules.py` | Fails when a module is imported only by tests. TypeScript/JavaScript and Python |
 | Agent instructions | a block in `CLAUDE.md` / `AGENTS.md` | The rules no tool can enforce, the sources-of-truth table, the check command, the board |
-| Pull request template | `.github/pull_request_template.md` | The evidence block, empty |
+| Pull request template | `.github/pull_request_template.md` | The four sections, empty |
 | CI | `.github/workflows/quarterdeck.yml` | The two pull-request checks, if you say yes |
 | The manifest | `.quarterdeck.json` | The one binding between the doctrine and your project: branches, commands, test globs, board, sources of truth. The hook, the checks and the skills read it at runtime |
 

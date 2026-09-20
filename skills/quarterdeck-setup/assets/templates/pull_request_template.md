@@ -1,15 +1,8 @@
 ## Task
 <task-id> · <task name> · <link>
 
-## Acceptance
-- [ ] <criterion> — <the command output or number that proves it>
-
-## Verification
-- `<check command>` — pass
-- mutation score — <n>% (previous <n>%)
-
-## Architecture
-No change.
+## What changed
+<what the system can now do that it could not, and how — not a list of files>
 
 ## Decisions made (tier 2)
 - none

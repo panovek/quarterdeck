@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""A pull request body carries every section of the evidence block, or it is not reviewable.
+"""A pull request body carries the four sections of workflow section 8, or it is not reviewable.
 
-Workflow section 8: the body of an agent pull request is written so that reviewing it requires
-running nothing. A missing section is ambiguity; the tier-2 decisions section in particular is
-mandatory even when it reads "none".
+The body says what the diff means and nothing a tool already shows: Task, What changed, Decisions
+made (tier 2), Not done. Acceptance criteria, verification results and the architecture verdict
+are not in it — the tests on the branch, the CI check and the image diff are those. A missing
+section is ambiguity; the tier-2 decisions section in particular is mandatory even when it reads
+"none".
 
 Reads the body on stdin, or fetches it with `--pr <number>` through the `gh` CLI:
 
-    printf '%s' "$PR_BODY" | python3 tools/quarterdeck/check-pr-evidence.py
-    python3 tools/quarterdeck/check-pr-evidence.py --pr 42
+    printf '%s' "$PR_BODY" | python3 tools/quarterdeck/check-pr-body.py
+    python3 tools/quarterdeck/check-pr-body.py --pr 42
 
-Exit 0 when every section is present and every acceptance line is ticked with evidence, 1 when
-not, 2 when the body could not be read.
+Exit 0 when every section is present and non-empty, 1 when not, 2 when the body could not be
+read.
 """
 
 import argparse
@@ -19,7 +21,7 @@ import re
 import subprocess
 import sys
 
-SECTIONS = ['Task', 'Acceptance', 'Verification', 'Architecture', 'Decisions made (tier 2)', 'Not done']
+SECTIONS = ['Task', 'What changed', 'Decisions made (tier 2)', 'Not done']
 
 
 def read_body(pr: str) -> str:
@@ -56,22 +58,12 @@ def main() -> None:
         elif not text.strip():
             problems.append(f'empty section: ## {title} (write "none" if there is nothing)')
 
-    acceptance = section(body, 'Acceptance') or ''
-    lines = [line for line in acceptance.splitlines() if line.strip().startswith('- [')]
-    if acceptance and not lines:
-        problems.append('Acceptance lists no criteria')
-    for line in lines:
-        if not line.strip().startswith('- [x]'):
-            problems.append(f'acceptance criterion not ticked: {line.strip()}')
-        elif ' — ' not in line and ' - ' not in line.split(']', 1)[1]:
-            problems.append(f'acceptance criterion carries no evidence after a dash: {line.strip()}')
-
     if problems:
-        print('the evidence block is incomplete:')
+        print('the pull request body is incomplete:')
         for problem in problems:
             print(f'  {problem}')
         sys.exit(1)
-    print(f'evidence block complete: {len(SECTIONS)} sections, {len(lines)} acceptance criteria with evidence')
+    print(f'pull request body complete: {len(SECTIONS)} sections')
     sys.exit(0)
 
 

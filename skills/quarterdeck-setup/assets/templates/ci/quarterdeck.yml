@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   gates:
-    name: Tests first, evidence block
+    name: Tests first, pull request body
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
       - name: First commit on the branch is failing tests only
         run: python3 tools/quarterdeck/check-tests-first.py --base "origin/${{ github.base_ref }}"
 
-      - name: Pull request carries every evidence section
+      - name: Pull request carries the four sections
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: printf '%s' "$PR_BODY" | python3 tools/quarterdeck/check-pr-evidence.py
+        run: printf '%s' "$PR_BODY" | python3 tools/quarterdeck/check-pr-body.py

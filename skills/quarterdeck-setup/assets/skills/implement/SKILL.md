@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implement one approved task end to end - pre-flight readiness check, task branch, tests first, the check chain, mutation testing, the architecture record, and a pull request with its evidence block. Use when asked to implement a task that is in todo.
+description: Implement one approved task end to end - pre-flight readiness check, task branch, tests first, the check chain, mutation testing, the architecture record, and a pull request that says what the change means. Use when asked to implement a task that is in todo.
 ---
 
 # Implement a task
@@ -103,33 +103,42 @@ removed, a boundary moved, or a planned (dashed) relationship the task just made
 **structural** change; a box that merely moved is not. The other diagrams in the folder, if any,
 are refreshed only on request, never here.
 
-*No:* say so in the pull request; regenerate nothing.
+*No:* regenerate nothing and say nothing — an untouched image in the diff is the verdict.
 
 *Yes:* update the record through the project's diagram tool, never by hand. If the project keeps
 a registry (`diagrams.md` beside the record — workflow section 10), take the architecture
 diagram's record from it and add one sentence saying what this task added, removed or made real,
 in the words of the specification's *Scope*; the folder's `README.md` is the contract the file is
 authored under. Then run `commands.arch` and commit the record and the image it renders. Read the
-record's diff before committing — the pull request states each structural change in the words of
-that diff. **If the change is structural and no ADR was added or amended, the pull request must
-say why not.**
+record's diff before committing. **If the change is structural and no ADR was added or amended,
+that is a tier-2 decision: log why not under *Decisions made*.**
 
-**The project keeps no architecture record** (`commands.arch` is empty). If the change adds a
-layer, a boundary or a relationship between layers that an ADR describes, the pull request says so
-under *Architecture*; otherwise it says "no architecture change".
+**The project keeps no architecture record** (`commands.arch` is empty). The same question,
+answered against the ADRs instead of a diagram: if the change adds a layer, a boundary or a
+relationship between layers and no ADR was added or amended, log why not under *Decisions made*;
+otherwise say nothing.
 
 ## 7. Pull request
 
 ```bash
 git push -u origin <task_prefix><task-id>-<slug>
-gh pr create --title "<the task name, verbatim>" --body-file <the evidence block>
+gh pr create --title "<the task name, verbatim>" --body-file <the body>
 ```
 
-The evidence block is specified in section 8 of the workflow, and `.github/pull_request_template.md`
-carries its skeleton: task link · each acceptance criterion with the output or number that proves
-it · verification results including the mutation score and its delta · the architecture verdict ·
-**the tier-2 decisions log** · what was deliberately not done. The tier-2 section is mandatory even
-when it reads `none`. `tools/quarterdeck/check-pr-evidence.py` fails the pull request when a
+The body is specified in section 8 of the workflow, and `.github/pull_request_template.md`
+carries its skeleton. It is short — four sections:
+
+- **Task** — id, name, link.
+- **What changed** — the idea of the change, in a few sentences or a short list: what the system
+  can now do that it could not, and how. **Not a list of files** — the reviewer has the diff open.
+- **Decisions made (tier 2)** — each choice with the rejected alternative. Mandatory even when it
+  reads `none`.
+- **Not done** — what was deliberately left out, and why.
+
+Nothing else. Do not restate the acceptance criteria — they are the tests on the branch. Do not
+list verification commands or results — the CI check on the pull request is the result. Do not
+narrate the architecture verdict — an updated architecture image in the diff is the change, and
+its absence is "no change". `tools/quarterdeck/check-pr-body.py` fails the pull request when a
 section is missing.
 
 Then comment the pull request link on the task and move it to `in review`.

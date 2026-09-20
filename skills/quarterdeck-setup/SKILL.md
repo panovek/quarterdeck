@@ -19,7 +19,7 @@ assets/
   doctrine/                   workflow.md, task-template.md, agent-notes.md, adr-README.md, adr-template.md
   skills/                     refine/, implement/ — installed into the project's .claude/skills/
   hooks/guard-main.py         the PreToolUse guard; reads .quarterdeck.json at runtime
-  tools/                      check-tests-first.py, check-pr-evidence.py, test-only-modules.py, doctor.py
+  tools/                      check-tests-first.py, check-pr-body.py, test-only-modules.py, doctor.py
   templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md,
                               diagrams.md — a starter diagram registry, offered in Step 11, never installed by default
 ```
@@ -157,7 +157,7 @@ every project and `doctor` diffs them against `$QD`.
 | `skills/implement/SKILL.md` | `.claude/skills/implement/SKILL.md` |
 | `hooks/guard-main.py` | `.claude/hooks/guard-main.py` |
 | `tools/check-tests-first.py` | `tools/quarterdeck/check-tests-first.py` |
-| `tools/check-pr-evidence.py` | `tools/quarterdeck/check-pr-evidence.py` |
+| `tools/check-pr-body.py` | `tools/quarterdeck/check-pr-body.py` |
 | `tools/test-only-modules.py` | `tools/quarterdeck/test-only-modules.py` |
 
 If a destination already exists and differs, do not overwrite silently: show the owner the diff
@@ -176,7 +176,7 @@ once; never overwritten, by you or by any later upgrade.
 | `doctrine/agent-notes.md` | `<docs_dir>/agent-notes.md` | it exists |
 | `doctrine/adr-README.md` | `<adr_dir>/README.md` | it exists |
 | `doctrine/adr-template.md` | `<adr_dir>/adr-template.md` | it exists, or the folder already has its own template |
-| `templates/pull_request_template.md` | `.github/pull_request_template.md` | it exists — then tell the owner the evidence block sections it must carry |
+| `templates/pull_request_template.md` | `.github/pull_request_template.md` | it exists — then tell the owner the four sections it must carry |
 
 **Validate.** Each destination exists. `doctor` — **Seeded files** all `ok`.
 
@@ -258,8 +258,8 @@ this step: a hook that is wired but never refuses anything is a rule that does n
 
 ### Step 9 — CI
 
-**Goal.** The two pull-request gates — first commit is tests only; evidence block complete — run
-on every pull request.
+**Goal.** The two pull-request gates — first commit is tests only; the four sections present —
+run on every pull request.
 
 **Do.**
 - GitHub Actions and the owner said yes: copy `$QD/templates/ci/quarterdeck.yml` to
@@ -269,10 +269,10 @@ on every pull request.
   requirement — set `ci` to `false` in the manifest so `doctor` does not look for the workflow
   file, and tell the owner the job is theirs to maintain.
 - No CI, or the owner said no: `ci` is `false`. Say what is *not* enforced as a result: the
-  tests-first rule and the evidence block then rest on the prose in the skills.
+  tests-first rule and the pull request body then rest on the prose in the skills.
 
 **Validate.** GitHub: `cmp` the workflow against the template. Other CI: `grep` shows the CI
-config referencing both `check-tests-first.py` and `check-pr-evidence.py`.
+config referencing both `check-tests-first.py` and `check-pr-body.py`.
 
 ### Step 10 — Doctor
 
@@ -321,11 +321,13 @@ precondition.
 1. Read the manifest; note its `quarterdeck` version. Run `doctor` and collect the **Shipped
    files** failures — those are the files that changed upstream, or were edited locally, or are
    installed under a path this version no longer uses (reported as *stale*).
-2. **Renamed paths first.** `doctor` names each stale path and its replacement. Move the
-   directory — `git mv .claude/skills/grill-task .claude/skills/refine` for the 0.3.0 rename —
-   so that a local edit travels with it, then treat the moved file as any other in the next step.
-   Nothing may remain at the old path: two skills with one job is exactly the ambiguity the
-   rename removes.
+2. **Renamed paths first.** `doctor` names each stale path and its replacement. Move it —
+   `git mv .claude/skills/grill-task .claude/skills/refine` for the 0.3.0 rename, `git mv
+   tools/quarterdeck/check-pr-evidence.py tools/quarterdeck/check-pr-body.py` for the gate
+   renamed when the evidence block was dropped — so that a local edit travels with it, then treat
+   the moved file as any other in the next step. Nothing may remain at the old path: two skills
+   with one job is exactly the ambiguity the rename removes. A renamed tool is also referenced
+   from the CI workflow; Step 9's validation catches the old name there.
 3. For each: `diff` the project's copy against `$QD`'s. If the project copy carries a local edit
    (the owner will recognise it), **stop for that file** and propose moving the edit upstream —
    a local edit to a shipped file is lost at the next upgrade by design. Otherwise overwrite.

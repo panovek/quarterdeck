@@ -63,7 +63,7 @@ def static_files(manifest: dict) -> dict:
         '.claude/skills/implement/SKILL.md': 'skills/implement/SKILL.md',
         '.claude/hooks/guard-main.py': 'hooks/guard-main.py',
         'tools/quarterdeck/check-tests-first.py': 'tools/check-tests-first.py',
-        'tools/quarterdeck/check-pr-evidence.py': 'tools/check-pr-evidence.py',
+        'tools/quarterdeck/check-pr-body.py': 'tools/check-pr-body.py',
         'tools/quarterdeck/test-only-modules.py': 'tools/test-only-modules.py',
     }
     if manifest.get('ci'):
@@ -75,6 +75,7 @@ def static_files(manifest: dict) -> dict:
 # mode of the setup skill moves the directory so that a local edit survives the rename.
 STALE = {
     '.claude/skills/grill-task/SKILL.md': '.claude/skills/refine/SKILL.md',  # renamed in 0.3.0
+    'tools/quarterdeck/check-pr-evidence.py': 'tools/quarterdeck/check-pr-body.py',  # renamed 2026-09-21, the evidence block dropped
 }
 
 
@@ -163,8 +164,8 @@ def main() -> None:
             r.ok(installed)
     for old, new in STALE.items():
         if os.path.isfile(os.path.join(target, old)):
-            r.fail(f'{old} is stale: quarterdeck {this} installs it as {new}; move the directory (upgrade mode) and delete the old one')
-    for name in ('check-tests-first.py', 'check-pr-evidence.py', 'test-only-modules.py'):
+            r.fail(f'{old} is stale: quarterdeck {this} installs it as {new}; move it (upgrade mode) and delete the old one')
+    for name in ('check-tests-first.py', 'check-pr-body.py', 'test-only-modules.py'):
         full = os.path.join(target, 'tools', 'quarterdeck', name)
         if os.path.isfile(full) and not os.access(full, os.X_OK):
             r.warn(f'tools/quarterdeck/{name} is not executable (chmod +x)')
@@ -268,7 +269,7 @@ def main() -> None:
     print('\nReadiness, by failure mode')
     readiness = {
         '1 · undecided ground': 'definition of ready and tier-3 stop — prose in the skills' + ('; no domain document yet' if no_domain else ''),
-        '2 · losing the thread': f'ADRs in {manifest["adr_dir"]}, evidence block check, ' + ('architecture command set' if commands.get('arch') else 'no architecture record'),
+        '2 · losing the thread': f'ADRs in {manifest["adr_dir"]}, pull request body check, ' + ('architecture command set' if commands.get('arch') else 'no architecture record'),
         '3 · invented work': 'test-only-module check ' + ('in the check chain' if 'test-only-modules' in commands.get('check', '') else 'installed but NOT in the check chain'),
         '4 · tests that prove nothing': 'tests-first check' + (', mutation gate' if commands.get('mutation') else ', no mutation gate') + (' — in CI' if manifest.get('ci') else ' — no CI workflow'),
         '5 · blocked, improvising': 'retry budget and waiting_on pre-flight — prose in the skills; the hook refuses the merge',

@@ -108,7 +108,8 @@ stateDiagram-v2
 | A module imported only by tests | **Check command** — `test-only-modules` |
 | First commit on a branch is failing tests only | **CI** — `check-tests-first` |
 | The four sections of the pull request body present | **CI** — `check-pr-body` |
-| Dead files, unused dependencies, layer boundaries, tests that miss wrong answers | **Check command** — your language's tools ([table below](#tools-by-language)) |
+| Dead files, unused dependencies, layer boundaries | **Check command** — your language's tools ([table below](#tools-by-language)) |
+| Tests that miss wrong answers | **Mutation command** — run by `/implement` before review, and by **CI on the main branch** after the merge, only when the push touched what the score depends on |
 | Source precedence, the three tiers, the retry budget, never weakening a test | **Agent instructions** — judgement, named honestly as prose |
 
 ## What it installs
@@ -129,6 +130,7 @@ stateDiagram-v2
 | Agent instructions | a block in `CLAUDE.md` / `AGENTS.md` | The rules no tool can enforce, the sources-of-truth table, the check command, the board |
 | Pull request template | `.github/pull_request_template.md` | The four sections, empty |
 | CI | `.github/workflows/quarterdeck.yml` | The two pull-request checks, if you say yes |
+| Mutation CI | `.github/workflows/mutation.yml` | The mutation score on the main branch after a merge, filtered by path — seeded from a template if you have a mutation command and say yes; yours from then on |
 | The manifest | `.quarterdeck.json` | The one binding between the doctrine and your project: branches, commands, test globs, board, sources of truth. The hook, the checks and the skills read it at runtime |
 
 The doctrine, the skills, the hook and the checks are **identical in every project** — nothing in
@@ -181,7 +183,8 @@ Then, by hand — the skill prints this list with your project's names in it:
    draft it if you ask.
 2. Configure the board: the seven statuses and the agent-writable lists.
 3. Add the test-only-module check, your dead-code tool and your boundary lint to the check command;
-   add mutation testing on the pure part of the code.
+   add mutation testing on the pure part of the code, and let the skill seed the workflow that runs
+   it on the main branch.
 4. Validate every gate that reports a number: plant one mutant, one test-only module, one boundary
    violation, and watch each fail.
 5. Put one small task through `open → refine → todo → in progress → in review → done`. Nothing is
@@ -255,7 +258,9 @@ the check command should chain them:
 
 Scope mutation testing to the part of the code that is pure and deterministic — a full run should
 take seconds, or it will be turned off. Record the scope in an ADR, set the threshold to what it
-measures on day one, and let it ratchet upward only.
+measures on day one, and let it ratchet upward only. Run it before review, and in CI on the main
+branch after a merge — not on the pull request — filtered to the paths the score depends on, so a
+documentation merge costs nothing.
 
 The test-only-module check understands TypeScript, JavaScript and Python. For another language,
 write the equivalent — the rule is one sentence: *a source file whose every importer is a test

@@ -21,6 +21,7 @@ assets/
   hooks/guard-main.py         the PreToolUse guard; reads .quarterdeck.json at runtime
   tools/                      check-tests-first.py, check-pr-body.py, test-only-modules.py, doctor.py
   templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md,
+                              ci/mutation.yml — a seed for the main-branch mutation run, offered in Step 9,
                               diagrams.md — a starter diagram registry, offered in Step 11, never installed by default
 ```
 
@@ -113,7 +114,10 @@ Ask, in this order, skipping nothing:
 7. **Source directories** and **test globs** — with the match counts from Step 1.
 8. **Agent signature** for `Co-Authored-By:` (default `Claude <noreply@anthropic.com>`).
 9. **CI**: write the GitHub Actions workflow? (default yes when `.github/workflows/` exists; for
-   another CI system, see Step 9).
+   another CI system, see Step 9). When there is a mutation command, also: seed the workflow that
+   runs it on the main branch after a merge? (default yes on GitHub Actions). If the project's CI
+   already runs mutation on pull requests, say so — that job is the project's, and moving it is
+   the owner's call.
 10. **Sources of truth** — confirm or edit the four default rows, and add any domain the
     project has that these do not cover (a data model document, a UI spec, a compliance
     document). The code row is added by you and is not up for discussion:
@@ -259,7 +263,8 @@ this step: a hook that is wired but never refuses anything is a rule that does n
 ### Step 9 — CI
 
 **Goal.** The two pull-request gates — first commit is tests only; the four sections present —
-run on every pull request.
+run on every pull request. When the project has a mutation command, its score runs on the main
+branch after a merge, filtered to what the score depends on (workflow.md section 9).
 
 **Do.**
 - GitHub Actions and the owner said yes: copy `$QD/templates/ci/quarterdeck.yml` to
@@ -271,8 +276,26 @@ run on every pull request.
 - No CI, or the owner said no: `ci` is `false`. Say what is *not* enforced as a result: the
   tests-first rule and the pull request body then rest on the prose in the skills.
 
-**Validate.** GitHub: `cmp` the workflow against the template. Other CI: `grep` shows the CI
-config referencing both `check-tests-first.py` and `check-pr-body.py`.
+**The mutation workflow** — only when `commands.mutation` is set, CI is GitHub Actions and the
+owner said yes. Render `$QD/templates/ci/mutation.yml` to `.github/workflows/mutation.yml`. It is a
+seed: skipped when the file exists, never touched by an upgrade, never checked by `doctor`.
+
+| Placeholder | Value |
+|---|---|
+| `{{main_branch}}`, `{{core_dir}}`, `{{mutation}}` | From the manifest |
+| `{{setup}}` | The steps that install the toolchain and the dependencies, indented as steps. Copy them from the project's existing CI job that runs the check command; with none, the ecosystem's official setup action and its lockfile install (`npm ci`, `pip install -r …`, `mix deps.get`, `go mod download`) |
+| `{{paths}}` | One `      - '<glob>'` line each: `<core_dir>/**`; every directory `core_dir` imports from — read its imports, do not guess; every manifest test glob; the mutation tool's and the test runner's configuration files, the compiler configuration, the dependency manifest and lockfile, the toolchain version file; `.github/workflows/mutation.yml` |
+
+For another CI system, translate it the same way — trigger on the main branch only, the same path
+list — and tell the owner the job is theirs to maintain. Without a mutation command, skip this;
+Step 11 brings it back.
+
+**Validate.** GitHub: `cmp` the gates workflow against the template. Other CI: `grep` shows the CI
+config referencing both `check-tests-first.py` and `check-pr-body.py`. Mutation workflow, when
+written: `grep -c '{{' .github/workflows/mutation.yml` prints `0`, and every entry under `paths`
+matches at least one tracked file — `git ls-files ':(glob)<entry>'` prints something for each, the
+workflow file itself excepted until it is committed. A filter that matches nothing is a run that
+never happens.
 
 ### Step 10 — Doctor
 
@@ -296,7 +319,8 @@ silence.
    uncommitted.
 2. Configure the board: the seven statuses and the agent-writable lists (name them).
 3. Add `python3 tools/quarterdeck/test-only-modules.py`, the language's dead-code tool and
-   boundary lint to the check command; add mutation testing on `core_dir`. Point at the README's
+   boundary lint to the check command; add mutation testing on `core_dir`, and once it exists,
+   set `commands.mutation` and seed its main-branch workflow (Step 9). Point at the README's
    *Tools by language* table for this ecosystem.
 4. Validate every gate that reports a number against a case with a known answer: plant one
    test-only module, one mutant, one boundary violation, and watch each fail.
@@ -338,8 +362,12 @@ precondition.
    ask for its value the way Step 2 would, and add it. If the default `sources` rows gained one
    — 0.3.0 added *The plan* — offer it the way Step 2 question 10 would; a row the owner accepts
    goes into the manifest and the block is re-rendered.
-6. Set `quarterdeck` in the manifest to `$QD/VERSION`.
-7. `doctor` exits `0`. Show `git status --short`. Do not commit.
+6. **0.3.2 moved mutation off the pull request.** When `commands.mutation` is set and no
+   `.github/workflows/mutation.yml` exists, offer the mutation workflow the way Step 9 does. If
+   the project's CI runs mutation on pull requests, point at workflow.md section 9 and leave that
+   job alone: it is the project's.
+7. Set `quarterdeck` in the manifest to `$QD/VERSION`.
+8. `doctor` exits `0`. Show `git status --short`. Do not commit.
 
 Seeded files are never touched by an upgrade. If a seed's template changed upstream, tell the
 owner what changed and leave the merge to them.

@@ -1,0 +1,41 @@
+# The mutation score, on the main branch after a merge. Seeded by quarterdeck-setup and the
+# project's from then on: an upgrade never touches it and doctor never reads it.
+#
+# Not on the pull request: /implement runs the mutation command before it asks for review, and
+# this run confirms what reached the main branch (workflow.md section 9).
+#
+# `paths` lists everything the score depends on, and a push that touches none of it — docs, art,
+# configuration of other tools — skips the run. That is safe here and would not be for a required
+# check: this workflow gates nothing, so a skipped run blocks nothing. The list:
+#   - the mutated area, and every directory it imports from;
+#   - every test file, because a test anywhere in the suite that reaches the mutated area can
+#     kill a mutant;
+#   - the toolchain that runs it: the mutation tool's and the test runner's configuration, the
+#     compiler configuration, the dependency manifest and lockfile, the toolchain version file;
+#   - this file.
+name: Mutation
+
+on:
+  push:
+    branches: [{{main_branch}}]
+    paths:
+{{paths}}
+  workflow_dispatch:
+
+# No `concurrency` block. A path filter is evaluated per push, so a run cancelled by the next merge
+# is not made up for by it: if that merge touched only docs, the change before it is never scored.
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: Mutation score ({{core_dir}})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+{{setup}}
+
+      - name: Mutation test
+        run: {{mutation}}

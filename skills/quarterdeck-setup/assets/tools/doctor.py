@@ -271,7 +271,7 @@ def main() -> None:
         '1 · undecided ground': 'definition of ready and tier-3 stop — prose in the skills' + ('; no domain document yet' if no_domain else ''),
         '2 · losing the thread': f'ADRs in {manifest["adr_dir"]}, pull request body check, ' + ('architecture command set' if commands.get('arch') else 'no architecture record'),
         '3 · invented work': 'test-only-module check ' + ('in the check chain' if 'test-only-modules' in commands.get('check', '') else 'installed but NOT in the check chain'),
-        '4 · tests that prove nothing': 'tests-first check' + (', mutation gate' if commands.get('mutation') else ', no mutation gate') + (' — in CI' if manifest.get('ci') else ' — no CI workflow'),
+        '4 · tests that prove nothing': 'tests-first check' + (' in CI' if manifest.get('ci') else ' — no CI workflow') + ('; mutation command before review' if commands.get('mutation') else '; no mutation gate'),
         '5 · blocked, improvising': 'retry budget and waiting_on pre-flight — prose in the skills; the hook refuses the merge',
     }
     for mode, answer in readiness.items():

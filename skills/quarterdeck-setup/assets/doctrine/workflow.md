@@ -209,9 +209,9 @@ where it starts weakening the test to make the suite green.
 
 The evidence is not in the body. The diff shows what files changed, the image diff of the
 architecture record shows what the architecture did, and the CI check on the pull request runs
-the check command and the mutation score. The body says what the diff *means* — the part no tool
-can show — and nothing a tool already shows. `tools/quarterdeck/check-pr-body.py` fails a pull
-request whose body lacks a section.
+the check command; the mutation score runs on the main branch after the merge (section 9). The
+body says what the diff *means* — the part no tool can show — and nothing a tool already shows.
+`tools/quarterdeck/check-pr-body.py` fails a pull request whose body lacks a section.
 
 ```markdown
 ## Task
@@ -247,7 +247,7 @@ Each rule sits on the cheapest surface that can actually enforce it.
 | No commits, pushes, merges or rebases on the main branch; no force-push; no merging a pull request | **Hook** — `.claude/hooks/guard-main.py`, a `PreToolUse` guard that refuses the tool call outright |
 | A module that exists only to be tested | **Check command** — `tools/quarterdeck/test-only-modules.py`, or the project's own equivalent |
 | Dead files, unused dependencies | **Check command** — the language's dead-code tool (README, *Tools by language*) |
-| Tests that do not detect a wrong answer | **CI on pull requests** — mutation score on the pure area, threshold ratchets and never falls |
+| Tests that do not detect a wrong answer | **Mutation command** before review, and **CI on the main branch** after the merge — mutation score on the pure area, threshold ratchets and never falls |
 | Layer boundaries | **Check command** — the language's boundary lint, one rule per ADR |
 | First commit on a branch is failing tests only | **CI on pull requests** — `tools/quarterdeck/check-tests-first.py` |
 | The four sections of the pull request body present | **CI on pull requests** — `tools/quarterdeck/check-pr-body.py` |
@@ -265,6 +265,14 @@ because it asks the only question that matters — does this test fail when the 
 Scope it to the part of the code that is pure and deterministic, so a full run takes seconds, and
 record the scope in an ADR so that no agent helpfully widens it. The threshold ratchets upward and
 never falls: a branch that lowers it weakened a test.
+
+It runs twice, and neither run is on the pull request. The agent runs it before asking for review
+(section 6, step 6). CI runs it again on the main branch after the merge, and only when the push
+touched what the score depends on — the mutated area, what it imports, any test file, the
+toolchain. A merge of documents cannot move the score, and a run that cannot fail is spent
+minutes. The price is named: a branch that lowers the score is caught as a red check on the main
+branch after the merge, not before it; until then the agent's own run is the gate.
+`quarterdeck-setup` seeds the GitHub Actions workflow for this from a template.
 
 **A gate is validated against a case with a known answer before its number is believed.** A
 mutation tool that cannot activate mutants under a new test-runner version reports survivors that

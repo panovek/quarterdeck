@@ -17,7 +17,7 @@ resolve it from this skill's own path before you start.
 assets/
   VERSION                     the version you are installing
   doctrine/                   workflow.md, task-template.md, agent-notes.md, adr-README.md, adr-template.md
-  skills/                     refine/, implement/, retro/ — installed into the project's .claude/skills/
+  skills/                     refine/, implement/, retro/, milestone-code-review/ — installed into the project's .claude/skills/
   hooks/guard-main.py         the PreToolUse guard; reads .quarterdeck.json at runtime
   tools/                      check-tests-first.py, check-pr-body.py, doctor.py
   templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md,
@@ -161,6 +161,7 @@ every project and `doctor` diffs them against `$QD`.
 | `skills/implement/SKILL.md` | `.claude/skills/implement/SKILL.md` |
 | `skills/retro/SKILL.md` | `.claude/skills/retro/SKILL.md` |
 | `skills/retro/digest.py` | `.claude/skills/retro/digest.py` |
+| `skills/milestone-code-review/SKILL.md` | `.claude/skills/milestone-code-review/SKILL.md` |
 | `hooks/guard-main.py` | `.claude/hooks/guard-main.py` |
 | `tools/check-tests-first.py` | `tools/quarterdeck/check-tests-first.py` |
 | `tools/check-pr-body.py` | `tools/quarterdeck/check-pr-body.py` |
@@ -168,7 +169,7 @@ every project and `doctor` diffs them against `$QD`.
 If a destination already exists and differs, do not overwrite silently: show the owner the diff
 and ask. (An existing identical copy is fine.)
 
-**Validate.** `cmp` each pair — silent for all nine. Then `python3 $QD/tools/doctor.py` — the
+**Validate.** `cmp` each pair — silent for all ten. Then `python3 $QD/tools/doctor.py` — the
 **Shipped files** section is all `ok` (bar the CI workflow, which is Step 9).
 
 ### Step 5 — Seed the files the project will own
@@ -382,12 +383,18 @@ precondition.
    tool has no such run, tell the owner the rule is theirs to write, as the
    [ecosystem defaults](#reference-ecosystem-defaults) say. Nothing reads `source_dirs` or
    `import_aliases` any more: delete both from the manifest.
-8. **0.5.0 added `/retro`.** `doctor` reports `.claude/skills/retro/SKILL.md` and
+8. **0.4.1 added `/retro`.** `doctor` reports `.claude/skills/retro/SKILL.md` and
    `.claude/skills/retro/digest.py` as missing; copy both as Step 4 does. Nothing else is to be
    done: the skill reads the manifest as it stands, and is run by hand — nothing in the workflow
    calls it.
-9. Set `quarterdeck` in the manifest to `$QD/VERSION`.
-10. `doctor` exits `0`. Show `git status --short`. Do not commit.
+9. **0.5.0 added `/milestone-code-review`.** `doctor` reports
+   `.claude/skills/milestone-code-review/SKILL.md` as missing; copy it as Step 4 does. The same
+   version changes `workflow.md` sections 9 and 11 and the `/retro` skill, which step 3 overwrites
+   like any shipped file. Nothing else is to be done: the skill reads the manifest as it stands,
+   files only into `board.lists` and only what the owner picks, and is run by hand at a milestone
+   boundary — nothing in the workflow calls it.
+10. Set `quarterdeck` in the manifest to `$QD/VERSION`.
+11. `doctor` exits `0`. Show `git status --short`. Do not commit.
 
 Seeded files are never touched by an upgrade. If a seed's template changed upstream, tell the
 owner what changed and leave the merge to them.
@@ -438,11 +445,11 @@ end says which are answered mechanically and which only by prose). Change nothin
 
 | Field | Read by |
 |---|---|
-| `main_branch`, `task_prefix` | the hook, `/implement`, `doctor` |
+| `main_branch`, `task_prefix` | the hook, `/implement`, `doctor`; `/milestone-code-review` reads `main_branch` |
 | `docs_dir`, `adr_dir`, `domain_doc` | the skills, `doctor` |
 | `board.*` | the skills (through `board.md`), `doctor` |
-| `commands.*`, `core_dir`, `agent_signature` | `/implement`; `/retro` reads `commands.check`, `commands.mutation` and `core_dir` |
-| `test_globs` | `check-tests-first.py`, `/implement`, `doctor` |
+| `commands.*`, `core_dir`, `agent_signature` | `/implement`; `/retro` reads `commands.check`, `commands.mutation` and `core_dir`; `/milestone-code-review` reads `commands.check` |
+| `test_globs` | `check-tests-first.py`, `/implement`, `/milestone-code-review`, `doctor` |
 | `ci`, `sources`, `quarterdeck` | `doctor`; `sources` also renders the instruction block |
 
 ## Reference: ecosystem defaults

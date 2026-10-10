@@ -251,6 +251,7 @@ Each rule sits on the cheapest surface that can actually enforce it.
 | Layer boundaries | **Check command** — the language's boundary lint, one rule per ADR |
 | First commit on a branch is failing tests only | **CI on pull requests** — `tools/quarterdeck/check-tests-first.py` |
 | The four sections of the pull request body present | **CI on pull requests** — `tools/quarterdeck/check-pr-body.py` |
+| Junk no tool can decide | **`/milestone-code-review`** — at each milestone boundary, on the owner's call; it proposes, and the owner picks what is filed |
 | Source precedence, the three tiers, the retry budget, never weakening a test | **Agent instructions** — judgement, not mechanism |
 
 **Invented work — and what actually catches it.** A dead-code tool run plainly is not enough: a
@@ -269,11 +270,26 @@ that wraps its import hides the module it was written for. Quarterdeck shipped s
 
 **One blind spot remains.** A module taken whole — a namespace import, a wildcard — has every export
 used, so a re-export behind it that nothing reaches is reported by neither run. Where the project
-takes a module whole on purpose, that module's exports are checked by hand; no tool checks them.
+takes a module whole on purpose, that module's exports are checked by hand, by
+`/milestone-code-review`; no tool checks them. A module that is not only taken whole but used whole
+— spread, iterated, serialised — has every export used in earnest, and needs no such check.
 
 The companion rule lives in the agent instructions because no tool checks all of it: *coverage is
 never a reason to create a consumer — if the only caller of a thing is its own test, the thing is
 deleted, not tested.*
+
+**What only judgement can see.** A dead-code tool answers *is this reached*; it cannot answer *is
+this needed*. A parameter every caller passes the same value, a field nothing reads, an
+abstraction with one implementation and no second one named anywhere, a rule the architecture gives
+one owner worked out again somewhere else, a comment that still promises what a finished task
+delivered, a test that restates a constant, a word the glossary bans, a stylesheet selector nothing
+uses — each passes every check above. `/milestone-code-review` looks for them, across the whole
+tree as it is on the main branch, at each milestone boundary when the owner calls it. It runs at
+the boundary rather than inside `/implement`, because an author does not grade its own change, and
+a change orphans code in files it never touched. It changes no code and files nothing on its own:
+it proposes a numbered list, leaves out what an open task already describes, and files into
+`board.lists` only what the owner picks. What is not picked is not recorded, and is proposed again
+next time.
 
 **Mutation testing.** Line coverage is exactly the metric a model games; mutation score is not,
 because it asks the only question that matters — does this test fail when the answer is wrong?
@@ -355,7 +371,7 @@ Three shapes, three responses:
 
 For the third case, append one line to `agent-notes.md`. At each milestone boundary the notes are
 read: anything that recurs is promoted into the agent instructions, the task template, or a lint
-rule. Without this, the same class of rejection repeats forever and the conclusion slowly becomes
+rule. The same boundary is when the owner runs `/milestone-code-review` (section 9). Without this, the same class of rejection repeats forever and the conclusion slowly becomes
 "the workflow does not work" — when what actually failed was a rule nobody wrote down.
 
 ## 12. Parked and dropped
@@ -385,6 +401,6 @@ Recorded so that they are not silently reopened.
 |---|---|
 | 1 · Building on undecided ground | Definition of ready (4); `refine` as a real status (3); escalation triggers (5); tier 3 stops mid-task (6) |
 | 2 · Losing the thread | Specification approved before code exists (5); ADR required for architectural choices (2, 10); the architecture record, redrawn from its registry record, whose image diff is the per-pull-request verdict (10); the tier-2 decisions log (8) |
-| 3 · Invented work | The dead-code tool run without the tests, on test-only files and exports (9); the same tool run plainly, on dead files and unused dependencies (9); the *Out of scope* field (4); "coverage is never a reason to create a consumer" (9) |
+| 3 · Invented work | The dead-code tool run without the tests, on test-only files and exports (9); the same tool run plainly, on dead files and unused dependencies (9); `/milestone-code-review` on what only judgement can see (9); the *Out of scope* field (4); "coverage is never a reason to create a consumer" (9) |
 | 4 · Tests that prove nothing | Mutation score, not coverage (9); table assertions and golden runs (9); tests-first commit as branch evidence (6, 9); the ban on weakening a test (6) |
 | 5 · Silent improvisation when blocked | `waiting_on` checked in pre-flight (4); the three tiers (6); the retry budget (6); agents may file into the agent-writable lists, and nowhere else (3) |

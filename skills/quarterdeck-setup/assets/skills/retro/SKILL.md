@@ -32,8 +32,8 @@ Read `.quarterdeck.json` in the repository root once. It names:
 - `board.lists` — the only lists a task may be created in.
 
 **Some files are not the project's.** Quarterdeck ships `<docs_dir>/workflow.md`,
-`<docs_dir>/task-template.md`, the `refine`, `implement` and `retro` skills, `guard-main.py`, the
-checks in `tools/quarterdeck/` and `.github/workflows/quarterdeck.yml`. `doctor` compares each with
+`<docs_dir>/task-template.md`, the `refine`, `implement`, `retro` and `milestone-code-review`
+skills, `guard-main.py`, the checks in `tools/quarterdeck/` and `.github/workflows/quarterdeck.yml`. `doctor` compares each with
 the version installed, and an upgrade overwrites it. The block between `<!-- quarterdeck:begin -->`
 and `<!-- quarterdeck:end -->` in the agent instructions is rendered, and a re-render replaces it.
 A fix that belongs in any of these is never made in place — it is written up as a change to

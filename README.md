@@ -3,8 +3,8 @@
 A workflow for building software with coding agents where **you** stay in command of the design,
 the architecture and what gets merged — and the agent does the implementation.
 
-It is language-agnostic and project-agnostic: a set of documents, three agent skills, one hook and
-two checks — and a fourth skill that installs them into any existing git repository by reading
+It is language-agnostic and project-agnostic: a set of documents, four agent skills, one hook and
+two checks — and a fifth skill that installs them into any existing git repository by reading
 the project, interviewing you, and then proving the installation with a deterministic `doctor`.
 It works with any source of truth your project already has — a PRD, a design document, an API
 contract, a spec — and with ClickUp, GitHub Issues, Markdown files or any tracker your agent can
@@ -110,6 +110,7 @@ stateDiagram-v2
 | The four sections of the pull request body present | **CI** — `check-pr-body` |
 | Dead files, unused dependencies, layer boundaries | **Check command** — your language's tools ([table below](#tools-by-language)) |
 | Tests that miss wrong answers | **Mutation command** — run by `/implement` before review, and by **CI on the main branch** after the merge, only when the push touched what the score depends on |
+| Junk no tool can decide — reached, but not needed | **`/milestone-code-review`** — run by hand at a milestone boundary; it proposes, and you pick what is filed |
 | Source precedence, the three tiers, the retry budget, never weakening a test | **Agent instructions** — judgement, named honestly as prose |
 
 ## What it installs
@@ -124,6 +125,7 @@ stateDiagram-v2
 | `/refine` | `.claude/skills/refine/` | Turns a conversation into a specification and writes it to the board on your word |
 | `/implement` | `.claude/skills/implement/` | Pre-flight, branch, tests first, implement, verify, architecture record, a pull request that says what the change means |
 | `/retro` | `.claude/skills/retro/` | Run by hand after a session that went badly: finds where the agent struggled, traces each moment to what in the repository let it happen, and proposes ranked fixes — a check, a hook, a pointer, a line of the instructions — writing nothing until you pick |
+| `/milestone-code-review` | `.claude/skills/milestone-code-review/` | Run by hand when a milestone ends: reads the whole tree on the main branch for what no tool can decide — an export behind a module taken whole, a parameter always passed one value, a rule worked out twice, a stale comment, a test that proves nothing, a banned word, an unused asset — and files on the board only the findings you pick |
 | The hook | `.claude/hooks/guard-main.py` | Refuses `git push` to the main branch, merges, rebases, force-pushes and `gh pr merge` |
 | Tests-first check | `tools/quarterdeck/check-tests-first.py` | Fails a pull request whose first commit touches anything but test files |
 | Pull request body check | `tools/quarterdeck/check-pr-body.py` | Fails a pull request whose body lacks one of the four sections: task, what changed, tier-2 decisions, not done |

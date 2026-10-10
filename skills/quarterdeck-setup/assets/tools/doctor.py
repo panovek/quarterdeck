@@ -64,6 +64,7 @@ def static_files(manifest: dict) -> dict:
         '.claude/skills/implement/SKILL.md': 'skills/implement/SKILL.md',
         '.claude/skills/retro/SKILL.md': 'skills/retro/SKILL.md',
         '.claude/skills/retro/digest.py': 'skills/retro/digest.py',
+        '.claude/skills/milestone-code-review/SKILL.md': 'skills/milestone-code-review/SKILL.md',
         '.claude/hooks/guard-main.py': 'hooks/guard-main.py',
         'tools/quarterdeck/check-tests-first.py': 'tools/check-tests-first.py',
         'tools/quarterdeck/check-pr-body.py': 'tools/check-pr-body.py',
@@ -281,7 +282,7 @@ def main() -> None:
     readiness = {
         '1 · undecided ground': 'definition of ready and tier-3 stop — prose in the skills' + ('; no domain document yet' if no_domain else ''),
         '2 · losing the thread': f'ADRs in {manifest["adr_dir"]}, pull request body check, ' + ('architecture command set' if commands.get('arch') else 'no architecture record'),
-        '3 · invented work': 'the dead-code tool run without the tests — the project\'s own, in the check chain by hand (README, step 3); doctor cannot see it',
+        '3 · invented work': 'the dead-code tool run without the tests — the project\'s own, in the check chain by hand (README, step 3); doctor cannot see it. What no tool decides: /milestone-code-review, by hand at a milestone boundary',
         '4 · tests that prove nothing': 'tests-first check' + (' in CI' if manifest.get('ci') else ' — no CI workflow') + ('; mutation command before review' if commands.get('mutation') else '; no mutation gate'),
         '5 · blocked, improvising': 'retry budget and waiting_on pre-flight — prose in the skills; the hook refuses the merge',
     }

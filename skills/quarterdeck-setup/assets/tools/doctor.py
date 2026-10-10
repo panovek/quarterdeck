@@ -62,6 +62,8 @@ def static_files(manifest: dict) -> dict:
         f'{docs}/task-template.md': 'doctrine/task-template.md',
         '.claude/skills/refine/SKILL.md': 'skills/refine/SKILL.md',
         '.claude/skills/implement/SKILL.md': 'skills/implement/SKILL.md',
+        '.claude/skills/retro/SKILL.md': 'skills/retro/SKILL.md',
+        '.claude/skills/retro/digest.py': 'skills/retro/digest.py',
         '.claude/hooks/guard-main.py': 'hooks/guard-main.py',
         'tools/quarterdeck/check-tests-first.py': 'tools/check-tests-first.py',
         'tools/quarterdeck/check-pr-body.py': 'tools/check-pr-body.py',

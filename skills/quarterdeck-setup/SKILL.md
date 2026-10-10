@@ -17,7 +17,7 @@ resolve it from this skill's own path before you start.
 assets/
   VERSION                     the version you are installing
   doctrine/                   workflow.md, task-template.md, agent-notes.md, adr-README.md, adr-template.md
-  skills/                     refine/, implement/ — installed into the project's .claude/skills/
+  skills/                     refine/, implement/, retro/ — installed into the project's .claude/skills/
   hooks/guard-main.py         the PreToolUse guard; reads .quarterdeck.json at runtime
   tools/                      check-tests-first.py, check-pr-body.py, doctor.py
   templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md,
@@ -137,7 +137,7 @@ answer of "whatever you think" means the default, and you say which default you 
 
 **Goal.** `.quarterdeck.json` in the repository root, with exactly the schema in the
 [reference](#reference-the-manifest). It is the single binding between the doctrine and this
-project: the hook, the two checks that need it, `doctor` and both skills read it.
+project: the hook, the two checks that need it, `doctor` and the skills read it.
 
 **Do.** Write it with `quarterdeck` set to the contents of `$QD/VERSION`, two-space indentation,
 keys in the reference order. Empty strings for commands that do not exist; never omit a key.
@@ -159,6 +159,8 @@ every project and `doctor` diffs them against `$QD`.
 | `doctrine/task-template.md` | `<docs_dir>/task-template.md` |
 | `skills/refine/SKILL.md` | `.claude/skills/refine/SKILL.md` |
 | `skills/implement/SKILL.md` | `.claude/skills/implement/SKILL.md` |
+| `skills/retro/SKILL.md` | `.claude/skills/retro/SKILL.md` |
+| `skills/retro/digest.py` | `.claude/skills/retro/digest.py` |
 | `hooks/guard-main.py` | `.claude/hooks/guard-main.py` |
 | `tools/check-tests-first.py` | `tools/quarterdeck/check-tests-first.py` |
 | `tools/check-pr-body.py` | `tools/quarterdeck/check-pr-body.py` |
@@ -166,7 +168,7 @@ every project and `doctor` diffs them against `$QD`.
 If a destination already exists and differs, do not overwrite silently: show the owner the diff
 and ask. (An existing identical copy is fine.)
 
-**Validate.** `cmp` each pair — silent for all seven. Then `python3 $QD/tools/doctor.py` — the
+**Validate.** `cmp` each pair — silent for all nine. Then `python3 $QD/tools/doctor.py` — the
 **Shipped files** section is all `ok` (bar the CI workflow, which is Step 9).
 
 ### Step 5 — Seed the files the project will own
@@ -186,7 +188,7 @@ once; never overwritten, by you or by any later upgrade.
 ### Step 6 — Render the board procedures
 
 **Goal.** `<docs_dir>/board.md`: how an agent reads, moves, comments on and creates a task on
-*this* board. Both installed skills read this file before touching the board.
+*this* board. The installed skills read this file before touching the board.
 
 **Do.** Start from `$QD/templates/boards/<kind>.md` and fill the placeholders:
 
@@ -345,7 +347,8 @@ precondition.
 
 1. Read the manifest; note its `quarterdeck` version. Run `doctor` and collect the **Shipped
    files** failures — those are the files that changed upstream, or were edited locally, or are
-   installed under a path this version no longer uses (reported as *stale*).
+   installed under a path this version no longer uses (reported as *stale*), or are new in this
+   version (reported as *missing*).
 2. **Renamed paths first.** `doctor` names each stale path and its replacement. Move it —
    `git mv .claude/skills/grill-task .claude/skills/refine` for the 0.3.0 rename, `git mv
    tools/quarterdeck/check-pr-evidence.py tools/quarterdeck/check-pr-body.py` for the gate
@@ -379,8 +382,12 @@ precondition.
    tool has no such run, tell the owner the rule is theirs to write, as the
    [ecosystem defaults](#reference-ecosystem-defaults) say. Nothing reads `source_dirs` or
    `import_aliases` any more: delete both from the manifest.
-8. Set `quarterdeck` in the manifest to `$QD/VERSION`.
-9. `doctor` exits `0`. Show `git status --short`. Do not commit.
+8. **0.5.0 added `/retro`.** `doctor` reports `.claude/skills/retro/SKILL.md` and
+   `.claude/skills/retro/digest.py` as missing; copy both as Step 4 does. Nothing else is to be
+   done: the skill reads the manifest as it stands, and is run by hand — nothing in the workflow
+   calls it.
+9. Set `quarterdeck` in the manifest to `$QD/VERSION`.
+10. `doctor` exits `0`. Show `git status --short`. Do not commit.
 
 Seeded files are never touched by an upgrade. If a seed's template changed upstream, tell the
 owner what changed and leave the merge to them.
@@ -432,9 +439,9 @@ end says which are answered mechanically and which only by prose). Change nothin
 | Field | Read by |
 |---|---|
 | `main_branch`, `task_prefix` | the hook, `/implement`, `doctor` |
-| `docs_dir`, `adr_dir`, `domain_doc` | both skills, `doctor` |
-| `board.*` | both skills (through `board.md`), `doctor` |
-| `commands.*`, `core_dir`, `agent_signature` | `/implement` |
+| `docs_dir`, `adr_dir`, `domain_doc` | the skills, `doctor` |
+| `board.*` | the skills (through `board.md`), `doctor` |
+| `commands.*`, `core_dir`, `agent_signature` | `/implement`; `/retro` reads `commands.check`, `commands.mutation` and `core_dir` |
 | `test_globs` | `check-tests-first.py`, `/implement`, `doctor` |
 | `ci`, `sources`, `quarterdeck` | `doctor`; `sources` also renders the instruction block |
 

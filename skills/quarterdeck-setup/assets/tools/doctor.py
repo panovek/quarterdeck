@@ -13,7 +13,8 @@ What it verifies, in order:
   2. Every file Quarterdeck ships unchanged — doctrine, skills, hook, checks, CI — is byte-identical
      to this version's copy. A difference is either a local edit that belongs upstream or an
      outdated install; either way the fix is the setup skill's upgrade mode. A path an earlier
-     version installed under another name is reported as stale until it is moved.
+     version installed under another name is reported as stale until it is moved, and a file this
+     version no longer ships as retired until it is deleted.
   3. Seeded files (logs, ADR seeds, the pull request template) exist. They are never compared.
   4. The two files the setup skill renders — the board procedures and the agent-instruction
      block — exist and state the facts the manifest holds. They are fact-checked, not diffed.
@@ -39,8 +40,8 @@ BEGIN, END = '<!-- quarterdeck:begin -->', '<!-- quarterdeck:end -->'
 STATUSES = ['open', 'refine', 'todo', 'in progress', 'in review', 'done', 'closed']
 REQUIRED = {
     'quarterdeck': str, 'main_branch': str, 'task_prefix': str, 'docs_dir': str, 'adr_dir': str,
-    'domain_doc': str, 'board': dict, 'commands': dict, 'core_dir': str, 'source_dirs': list,
-    'test_globs': list, 'import_aliases': dict, 'agent_signature': str, 'ci': bool, 'sources': list,
+    'domain_doc': str, 'board': dict, 'commands': dict, 'core_dir': str, 'test_globs': list,
+    'agent_signature': str, 'ci': bool, 'sources': list,
 }
 
 
@@ -64,7 +65,6 @@ def static_files(manifest: dict) -> dict:
         '.claude/hooks/guard-main.py': 'hooks/guard-main.py',
         'tools/quarterdeck/check-tests-first.py': 'tools/check-tests-first.py',
         'tools/quarterdeck/check-pr-body.py': 'tools/check-pr-body.py',
-        'tools/quarterdeck/test-only-modules.py': 'tools/test-only-modules.py',
     }
     if manifest.get('ci'):
         files['.github/workflows/quarterdeck.yml'] = 'templates/ci/quarterdeck.yml'
@@ -76,6 +76,14 @@ def static_files(manifest: dict) -> dict:
 STALE = {
     '.claude/skills/grill-task/SKILL.md': '.claude/skills/refine/SKILL.md',  # renamed in 0.3.0
     'tools/quarterdeck/check-pr-evidence.py': 'tools/quarterdeck/check-pr-body.py',  # renamed 2026-09-21, the evidence block dropped
+}
+
+# Installed path an earlier version shipped → why this version ships nothing in its place. The
+# upgrade mode of the setup skill deletes it and rewires the check chain.
+RETIRED = {
+    'tools/quarterdeck/test-only-modules.py':
+        'retired in 0.4.0: it read imports with a regular expression and could not see one the formatter '
+        'wraps; the dead-code tool run without the tests replaces it (workflow.md section 9)',
 }
 
 
@@ -165,7 +173,10 @@ def main() -> None:
     for old, new in STALE.items():
         if os.path.isfile(os.path.join(target, old)):
             r.fail(f'{old} is stale: quarterdeck {this} installs it as {new}; move it (upgrade mode) and delete the old one')
-    for name in ('check-tests-first.py', 'check-pr-body.py', 'test-only-modules.py'):
+    for old, why in RETIRED.items():
+        if os.path.isfile(os.path.join(target, old)):
+            r.fail(f'{old} is {why}; delete it and take it out of the check chain (upgrade mode)')
+    for name in ('check-tests-first.py', 'check-pr-body.py'):
         full = os.path.join(target, 'tools', 'quarterdeck', name)
         if os.path.isfile(full) and not os.access(full, os.X_OK):
             r.warn(f'tools/quarterdeck/{name} is not executable (chmod +x)')
@@ -256,10 +267,8 @@ def main() -> None:
             'no mutation command: failure mode 4 rests on the tests-first check and the prose ban alone', severity='warn')
     matched = any(glob.glob(os.path.join(target, g), recursive=True) for g in manifest['test_globs'])
     r.check(matched, f'test globs match existing files: {", ".join(manifest["test_globs"])}',
-            f'no file matches any test glob ({", ".join(manifest["test_globs"])}); the tests-first and test-only-module checks would misfire',
+            f'no file matches any test glob ({", ".join(manifest["test_globs"])}); the tests-first check would misfire',
             severity='warn')
-    r.check('test-only-modules' in commands.get('check', ''), 'test-only-module check is in the check chain',
-            'test-only-module check is not in the check chain yet (README, step 3)', severity='warn')
     no_domain = manifest['domain_doc'] in ('', 'none yet') or any('none yet' in row.get('owner', '') for row in manifest['sources'])
     if no_domain:
         r.warn('no domain document owns intent: the citation rule has nothing to cite but ADRs and tasks')
@@ -270,7 +279,7 @@ def main() -> None:
     readiness = {
         '1 · undecided ground': 'definition of ready and tier-3 stop — prose in the skills' + ('; no domain document yet' if no_domain else ''),
         '2 · losing the thread': f'ADRs in {manifest["adr_dir"]}, pull request body check, ' + ('architecture command set' if commands.get('arch') else 'no architecture record'),
-        '3 · invented work': 'test-only-module check ' + ('in the check chain' if 'test-only-modules' in commands.get('check', '') else 'installed but NOT in the check chain'),
+        '3 · invented work': 'the dead-code tool run without the tests — the project\'s own, in the check chain by hand (README, step 3); doctor cannot see it',
         '4 · tests that prove nothing': 'tests-first check' + (' in CI' if manifest.get('ci') else ' — no CI workflow') + ('; mutation command before review' if commands.get('mutation') else '; no mutation gate'),
         '5 · blocked, improvising': 'retry budget and waiting_on pre-flight — prose in the skills; the hook refuses the merge',
     }

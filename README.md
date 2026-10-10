@@ -36,7 +36,7 @@ that cannot be made executable are named as such and placed where they will be r
 |---|---|
 | 1 · Undecided ground | A **definition of ready** an agent must refuse to violate; `refine` as a real board status; a specification in which **every line cites its source** — an uncited line is an invention, visible without checking anything |
 | 2 · Losing the thread | The specification is approved **before** code exists; architectural choices become ADRs; every pull request logs the decisions it made and the alternatives it rejected |
-| 3 · Invented work | A check that fails when a module is imported **only by tests** — the shape invented work takes and dead-code tools miss; an explicit *Out of scope* field on every task |
+| 3 · Invented work | The dead-code tool run a second time **without the tests**, so a module or an export that only tests reach is reported as unused — the shape invented work takes and a plain run misses; an explicit *Out of scope* field on every task |
 | 4 · Tests that prove nothing | The **first commit on a branch is failing tests only**, checked in CI; mutation score instead of coverage; assertions against the number in the document, never the number the code returned |
 | 5 · Silent improvisation | Three tiers of decision — the third is **stop**; a retry budget of three identical failures; a hook that makes merging physically the owner's |
 
@@ -105,7 +105,7 @@ stateDiagram-v2
 | Rule | Surface |
 |---|---|
 | No commit, push, merge, rebase or force-push on the main branch; no merging a pull request | **Hook** — refuses the tool call before it runs |
-| A module imported only by tests | **Check command** — `test-only-modules` |
+| A module or an export reached only by tests | **Check command** — your dead-code tool, run without the tests ([table below](#tools-by-language)) |
 | First commit on a branch is failing tests only | **CI** — `check-tests-first` |
 | The four sections of the pull request body present | **CI** — `check-pr-body` |
 | Dead files, unused dependencies, layer boundaries | **Check command** — your language's tools ([table below](#tools-by-language)) |
@@ -126,7 +126,6 @@ stateDiagram-v2
 | The hook | `.claude/hooks/guard-main.py` | Refuses `git push` to the main branch, merges, rebases, force-pushes and `gh pr merge` |
 | Tests-first check | `tools/quarterdeck/check-tests-first.py` | Fails a pull request whose first commit touches anything but test files |
 | Pull request body check | `tools/quarterdeck/check-pr-body.py` | Fails a pull request whose body lacks one of the four sections: task, what changed, tier-2 decisions, not done |
-| Test-only-module check | `tools/quarterdeck/test-only-modules.py` | Fails when a module is imported only by tests. TypeScript/JavaScript and Python |
 | Agent instructions | a block in `CLAUDE.md` / `AGENTS.md` | The rules no tool can enforce, the sources-of-truth table, the check command, the board |
 | Pull request template | `.github/pull_request_template.md` | The four sections, empty |
 | CI | `.github/workflows/quarterdeck.yml` | The two pull-request checks, if you say yes |
@@ -182,11 +181,11 @@ Then, by hand — the skill prints this list with your project's names in it:
    have no ADRs, the first one names your layers and the import rule between them; the skill will
    draft it if you ask.
 2. Configure the board: the seven statuses and the agent-writable lists.
-3. Add the test-only-module check, your dead-code tool and your boundary lint to the check command;
-   add mutation testing on the pure part of the code, and let the skill seed the workflow that runs
-   it on the main branch.
-4. Validate every gate that reports a number: plant one mutant, one test-only module, one boundary
-   violation, and watch each fail.
+3. Add your dead-code tool to the check command twice — plainly, and a second time without the
+   tests — and your boundary lint; add mutation testing on the pure part of the code, and let the
+   skill seed the workflow that runs it on the main branch.
+4. Validate every gate that reports a number: plant one mutant, one test-only module with its
+   import wrapped over several lines, one boundary violation, and watch each fail.
 5. Put one small task through `open → refine → todo → in progress → in review → done`. Nothing is
    installed until that has happened once.
 
@@ -242,19 +241,19 @@ are a thing to report, naming both sides — never to resolve by choosing.
 Quarterdeck ships the language-free checks. Three more gates are the project's to configure, and
 the check command should chain them:
 
-| Language | Mutation testing | Dead code, unused dependencies | Layer boundaries |
-|---|---|---|---|
-| TypeScript / JavaScript | Stryker | knip | eslint-plugin-boundaries, dependency-cruiser |
-| Python | mutmut, Cosmic Ray | vulture, deptry | import-linter |
-| Elixir | muzak, mutix | mix_unused, `mix compile --warnings-as-errors`, `mix deps.unlock --check-unused` | boundary |
-| Go | gremlins, go-mutesting | deadcode, `go mod tidy -diff` | go-arch-lint |
-| Rust | cargo-mutants | cargo-machete, compiler warnings as errors | a `tests/` ArchUnit-style check, or module visibility |
-| Java / Kotlin | PIT | `mvn dependency:analyze` | ArchUnit, Konsist |
-| C# | Stryker.NET | Roslyn analyzers (IDE0051 etc.) | NetArchTest |
-| PHP | Infection | composer-unused | deptrac |
-| Ruby | mutant | debride | packwerk |
-| Swift | muter | periphery | a SwiftLint custom rule |
-| Any of Go, TS, Python, Java | — | — | lintel (`arch.yaml`, tree-sitter) |
+| Language | Mutation testing | Dead code, unused dependencies | The same, without the tests | Layer boundaries |
+|---|---|---|---|---|
+| TypeScript / JavaScript | Stryker | knip | `knip --production`, with the non-test scripts marked as production entries | eslint-plugin-boundaries, dependency-cruiser |
+| Python | mutmut, Cosmic Ray | vulture, deptry | vulture over the source directories alone | import-linter |
+| Elixir | muzak, mutix | mix_unused, `mix compile --warnings-as-errors`, `mix deps.unlock --check-unused` | — | boundary |
+| Go | gremlins, go-mutesting | deadcode, `go mod tidy -diff` | `deadcode` as it runs — tests are left out unless `-test` is passed | go-arch-lint |
+| Rust | cargo-mutants | cargo-machete, compiler warnings as errors | the `dead_code` lint in a build without tests — crate-private items only | a `tests/` ArchUnit-style check, or module visibility |
+| Java / Kotlin | PIT | `mvn dependency:analyze` | — | ArchUnit, Konsist |
+| C# | Stryker.NET | Roslyn analyzers (IDE0051 etc.) | — | NetArchTest |
+| PHP | Infection | composer-unused | — | deptrac |
+| Ruby | mutant | debride | debride over `lib` and `app` alone | packwerk |
+| Swift | muter | periphery | `periphery scan --exclude-tests` | a SwiftLint custom rule |
+| Any of Go, TS, Python, Java | — | — | — | lintel (`arch.yaml`, tree-sitter) |
 
 Scope mutation testing to the part of the code that is pure and deterministic — a full run should
 take seconds, or it will be turned off. Record the scope in an ADR, set the threshold to what it
@@ -262,10 +261,15 @@ measures on day one, and let it ratchet upward only. Run it before review, and i
 branch after a merge — not on the pull request — filtered to the paths the score depends on, so a
 documentation merge costs nothing.
 
-The test-only-module check understands TypeScript, JavaScript and Python. For another language,
-write the equivalent — the rule is one sentence: *a source file whose every importer is a test
-file fails the build* — and put it in the check command. In Elixir, `mix xref graph --format dot`
-gives you the import graph to apply it to.
+The column *without the tests* is the rule against invented work: run over the project with its
+tests left out, the dead-code tool reports a module or an export that only tests reach. Name every
+script the project runs that is not a test — a harness, a render or build script — as an entry of
+that run; it is a real consumer. Where the column is empty, write the equivalent — the rule is one
+sentence: *a source file whose every importer is a test file fails the build* — and put it in the
+check command. Read the import graph with the compiler or a parser, never a regular expression,
+which cannot read an import the formatter wraps over several lines; Quarterdeck shipped such a
+check until 0.4.0 and retired it for that. In Elixir, `mix xref graph --format dot` gives you the
+import graph to apply it to.
 
 ## What it does not do
 

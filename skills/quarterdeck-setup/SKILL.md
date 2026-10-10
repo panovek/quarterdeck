@@ -19,7 +19,7 @@ assets/
   doctrine/                   workflow.md, task-template.md, agent-notes.md, adr-README.md, adr-template.md
   skills/                     refine/, implement/ — installed into the project's .claude/skills/
   hooks/guard-main.py         the PreToolUse guard; reads .quarterdeck.json at runtime
-  tools/                      check-tests-first.py, check-pr-body.py, test-only-modules.py, doctor.py
+  tools/                      check-tests-first.py, check-pr-body.py, doctor.py
   templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md,
                               ci/mutation.yml — a seed for the main-branch mutation run, offered in Step 9,
                               diagrams.md — a starter diagram registry, offered in Step 11, never installed by default
@@ -71,11 +71,10 @@ a guess.
 | Ecosystem(s) | Marker files in the root: `tsconfig.json`, `package.json`, `pyproject.toml` / `setup.py` / `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml` / `build.gradle(.kts)`, `*.sln` / `*.csproj`, `Gemfile`, `composer.json`, `Package.swift`, `mix.exs`. A monorepo may have several — note all and ask which one the workflow applies to first |
 | Main branch | `git symbolic-ref --short refs/remotes/origin/HEAD`; else whichever of `main` / `master` exists |
 | Test command | The runner's own entry: `package.json` scripts, `Makefile` / `justfile` targets, `mix.exs` aliases, `pyproject.toml` tool sections, `Cargo.toml`, `go.mod`. The [defaults table](#reference-ecosystem-defaults) is the fallback, never the first choice |
-| Check command | An existing `check` / `ci` / `verify` script or target if there is one. Otherwise compose it: typecheck && lint && format-check && dead-code tool && tests, from the scripts that exist |
+| Check command | An existing `check` / `ci` / `verify` script or target if there is one. Otherwise compose it: typecheck && lint && format-check && dead-code tool && the dead-code tool without the tests && tests, from the scripts that exist |
 | Mutation command | Existing config: `stryker.config.*`, `mutmut` in `pyproject.toml`, `cargo-mutants`, `muzak` in `mix.exs`, … Empty if none |
 | Test globs | The runner's config (`testMatch` / `include` for jest or vitest, `testpaths` for pytest, `test/` for ExUnit, `*_test.go`, `spec/` for RSpec). Then **check them**: they must match existing test files and must not match source files |
-| Source directories | Where non-test code lives: `src`, `lib`, `app`, `Sources`, `.` for Go |
-| Import aliases | `compilerOptions.paths` in `tsconfig.json` — `@/*` → `src/*` becomes `{"@/": "src/"}` |
+| Source directories | Where non-test code lives: `src`, `lib`, `app`, `Sources`, `.` for Go. What the test globs are checked against |
 | ADR directory | Any of `docs/adr`, `docs/decisions`, `doc/adr`, `adr`, `docs/en/adr` |
 | Domain document | Candidates only, never assumed: `PRD.md`, `docs/**/prd*.md`, `docs/design*.md`, `SPEC.md`, `docs/spec*.md`, an OpenAPI file, a `docs/gdd*.md`. Offer the best candidate as the default; `none yet` is a legitimate answer |
 | Board | A ClickUp connector in this session → `clickup`; `gh` on PATH and a github.com remote → `github`; another tracker connector in the session → `generic`; otherwise `markdown` |
@@ -111,7 +110,8 @@ Ask, in this order, skipping nothing:
    none) — each with the exit code you observed.
 6. **`core_dir`** — the pure, deterministic directory mutation testing is scoped to (empty if
    none yet).
-7. **Source directories** and **test globs** — with the match counts from Step 1.
+7. **Test globs** — with the match counts from Step 1, and the source directories they were
+   checked against.
 8. **Agent signature** for `Co-Authored-By:` (default `Claude <noreply@anthropic.com>`).
 9. **CI**: write the GitHub Actions workflow? (default yes when `.github/workflows/` exists; for
    another CI system, see Step 9). When there is a mutation command, also: seed the workflow that
@@ -162,12 +162,11 @@ every project and `doctor` diffs them against `$QD`.
 | `hooks/guard-main.py` | `.claude/hooks/guard-main.py` |
 | `tools/check-tests-first.py` | `tools/quarterdeck/check-tests-first.py` |
 | `tools/check-pr-body.py` | `tools/quarterdeck/check-pr-body.py` |
-| `tools/test-only-modules.py` | `tools/quarterdeck/test-only-modules.py` |
 
 If a destination already exists and differs, do not overwrite silently: show the owner the diff
 and ask. (An existing identical copy is fine.)
 
-**Validate.** `cmp` each pair — silent for all eight. Then `python3 $QD/tools/doctor.py` — the
+**Validate.** `cmp` each pair — silent for all seven. Then `python3 $QD/tools/doctor.py` — the
 **Shipped files** section is all `ok` (bar the CI workflow, which is Step 9).
 
 ### Step 5 — Seed the files the project will own
@@ -318,12 +317,14 @@ silence.
    import rule between them — from `<adr_dir>/adr-template.md`. Draft it only if asked; leave it
    uncommitted.
 2. Configure the board: the seven statuses and the agent-writable lists (name them).
-3. Add `python3 tools/quarterdeck/test-only-modules.py`, the language's dead-code tool and
-   boundary lint to the check command; add mutation testing on `core_dir`, and once it exists,
-   set `commands.mutation` and seed its main-branch workflow (Step 9). Point at the README's
-   *Tools by language* table for this ecosystem.
+3. Add the language's dead-code tool to the check command twice — plainly, and a second time
+   over the project without its tests, with every script the project runs that is not a test
+   named as an entry of that run (workflow.md section 9) — and the boundary lint; add mutation
+   testing on `core_dir`, and once it exists, set `commands.mutation` and seed its main-branch
+   workflow (Step 9). Point at the README's *Tools by language* table for this ecosystem.
 4. Validate every gate that reports a number against a case with a known answer: plant one
-   test-only module, one mutant, one boundary violation, and watch each fail.
+   test-only module — its import wrapped over several lines — one mutant, one boundary
+   violation, and watch each fail.
 5. Put one small task through `open → refine → todo → in progress → in review → done`. Nothing is
    installed until that has happened once.
 6. Only when `commands.arch` is set: the recommended shape of the record is workflow.md section
@@ -366,8 +367,20 @@ precondition.
    `.github/workflows/mutation.yml` exists, offer the mutation workflow the way Step 9 does. If
    the project's CI runs mutation on pull requests, point at workflow.md section 9 and leave that
    job alone: it is the project's.
-7. Set `quarterdeck` in the manifest to `$QD/VERSION`.
-8. `doctor` exits `0`. Show `git status --short`. Do not commit.
+7. **0.4.0 retired `test-only-modules.py`.** It read imports with a regular expression and could
+   not see one the formatter wraps (workflow.md section 9); `doctor` reports it as retired.
+   Delete `tools/quarterdeck/test-only-modules.py` and take it out of the check chain — the
+   project's own script, and `commands.check` when it names the file, then re-render the block
+   (Step 7) — and out of any CI configuration that names it. In its place, chain the project's
+   dead-code tool a second time over the project without its tests (README, *Tools by
+   language*), with every script the project runs that is not a test named as an entry of that
+   run; run it and see it exit `0` before it goes in. Then plant one module imported only by its
+   test through a wrapped import, see the run report it, and delete it. Where the ecosystem's
+   tool has no such run, tell the owner the rule is theirs to write, as the
+   [ecosystem defaults](#reference-ecosystem-defaults) say. Nothing reads `source_dirs` or
+   `import_aliases` any more: delete both from the manifest.
+8. Set `quarterdeck` in the manifest to `$QD/VERSION`.
+9. `doctor` exits `0`. Show `git status --short`. Do not commit.
 
 Seeded files are never touched by an upgrade. If a seed's template changed upstream, tell the
 owner what changed and leave the merge to them.
@@ -398,15 +411,13 @@ end says which are answered mechanically and which only by prose). Change nothin
     "lists": ["Bugs", "Open decisions"]
   },
   "commands": {
-    "check": "npm run typecheck && npm run lint && npm run knip && python3 tools/quarterdeck/test-only-modules.py && npm test",
+    "check": "npm run typecheck && npm run lint && npx knip && npx knip --production && npm test",
     "test": "npm test",
     "mutation": "npm run test:mutation",
     "arch": ""
   },
   "core_dir": "src/core",
-  "source_dirs": ["src"],
   "test_globs": ["**/*.test.ts", "**/__tests__/**"],
-  "import_aliases": {"@/": "src/"},
   "agent_signature": "Claude <noreply@anthropic.com>",
   "ci": true,
   "sources": [
@@ -424,7 +435,7 @@ end says which are answered mechanically and which only by prose). Change nothin
 | `docs_dir`, `adr_dir`, `domain_doc` | both skills, `doctor` |
 | `board.*` | both skills (through `board.md`), `doctor` |
 | `commands.*`, `core_dir`, `agent_signature` | `/implement` |
-| `source_dirs`, `test_globs`, `import_aliases` | `check-tests-first.py`, `test-only-modules.py`, `/implement` |
+| `test_globs` | `check-tests-first.py`, `/implement`, `doctor` |
 | `ci`, `sources`, `quarterdeck` | `doctor`; `sources` also renders the instruction block |
 
 ## Reference: ecosystem defaults
@@ -446,6 +457,8 @@ repository actually declares.
 | `composer.json` | `vendor/bin/phpunit` | `vendor/bin/phpunit` | `tests/**` | `src` |
 | `Package.swift` | `swift test` | `swift build && swift test` | `Tests/**` | `Sources` |
 
-The test-only-module check scans TypeScript, JavaScript and Python. For any other ecosystem, tell
-the owner the rule in one sentence — *a source file whose every importer is a test file fails the
-build* — and that the equivalent is theirs to write into the check chain.
+The test-only rule is the dead-code tool run a second time over the project without its tests;
+the README's *Tools by language* table names that run where the ecosystem has one. Where it has
+none, tell the owner the rule in one sentence — *a source file whose every importer is a test file
+fails the build* — and that the equivalent is theirs to write into the check chain, reading the
+import graph with the compiler or a parser, never with a regular expression.

@@ -245,7 +245,7 @@ Each rule sits on the cheapest surface that can actually enforce it.
 | Rule | Surface |
 |---|---|
 | No commits, pushes, merges or rebases on the main branch; no force-push; no merging a pull request | **Hook** — `.claude/hooks/guard-main.py`, a `PreToolUse` guard that refuses the tool call outright |
-| A module that exists only to be tested | **Check command** — `tools/quarterdeck/test-only-modules.py`, or the project's own equivalent |
+| A module or an export that exists only to be tested | **Check command** — the language's dead-code tool, run a second time over the project without its tests (README, *Tools by language*) |
 | Dead files, unused dependencies | **Check command** — the language's dead-code tool (README, *Tools by language*) |
 | Tests that do not detect a wrong answer | **Mutation command** before review, and **CI on the main branch** after the merge — mutation score on the pure area, threshold ratchets and never falls |
 | Layer boundaries | **Check command** — the language's boundary lint, one rule per ADR |
@@ -253,12 +253,27 @@ Each rule sits on the cheapest surface that can actually enforce it.
 | The four sections of the pull request body present | **CI on pull requests** — `tools/quarterdeck/check-pr-body.py` |
 | Source precedence, the three tiers, the retry budget, never weakening a test | **Agent instructions** — judgement, not mechanism |
 
-**Invented work — and what actually catches it.** Dead-code tools are not enough: a module
-imported by its own test is *used* as far as they are concerned, so the settings-module-with-fake-
-settings passes them cleanly. What catches it is a check that fails when every importer of a source
-file is a test file, naming the file and its tests. The companion rule lives in the agent
-instructions because no tool can check it: *coverage is never a reason to create a consumer — if
-the only caller of a thing is its own test, the thing is deleted, not tested.*
+**Invented work — and what actually catches it.** A dead-code tool run plainly is not enough: a
+module imported by its own test is *used* as far as it is concerned, so the
+settings-module-with-fake-settings passes it cleanly. What catches it is the same tool run a second
+time over the project without its tests — knip's `--production`, for one: a file that only tests
+import is then an unused file, and an export that only tests reach is an unused export. Every
+script the project runs that is not a test — a harness, a render or build script — is named as an
+entry of that run, or it is reported too: a harness is a real consumer, a test is not.
+
+Read the import graph with a parser, never a regular expression. A hand-written check that matches
+imports line by line cannot read an import the formatter has wrapped over several lines, and it
+fails both ways: real code is reported as test-only, and code gets reshaped to get past it; a test
+that wraps its import hides the module it was written for. Quarterdeck shipped such a check until
+0.4.0 and retired it for exactly that.
+
+**One blind spot remains.** A module taken whole — a namespace import, a wildcard — has every export
+used, so a re-export behind it that nothing reaches is reported by neither run. Where the project
+takes a module whole on purpose, that module's exports are checked by hand; no tool checks them.
+
+The companion rule lives in the agent instructions because no tool checks all of it: *coverage is
+never a reason to create a consumer — if the only caller of a thing is its own test, the thing is
+deleted, not tested.*
 
 **Mutation testing.** Line coverage is exactly the metric a model games; mutation score is not,
 because it asks the only question that matters — does this test fail when the answer is wrong?
@@ -370,6 +385,6 @@ Recorded so that they are not silently reopened.
 |---|---|
 | 1 · Building on undecided ground | Definition of ready (4); `refine` as a real status (3); escalation triggers (5); tier 3 stops mid-task (6) |
 | 2 · Losing the thread | Specification approved before code exists (5); ADR required for architectural choices (2, 10); the architecture record, redrawn from its registry record, whose image diff is the per-pull-request verdict (10); the tier-2 decisions log (8) |
-| 3 · Invented work | The test-only-module check (9); dead-code tools (9); the *Out of scope* field (4); "coverage is never a reason to create a consumer" (9) |
+| 3 · Invented work | The dead-code tool run without the tests, on test-only files and exports (9); the same tool run plainly, on dead files and unused dependencies (9); the *Out of scope* field (4); "coverage is never a reason to create a consumer" (9) |
 | 4 · Tests that prove nothing | Mutation score, not coverage (9); table assertions and golden runs (9); tests-first commit as branch evidence (6, 9); the ban on weakening a test (6) |
 | 5 · Silent improvisation when blocked | `waiting_on` checked in pre-flight (4); the three tiers (6); the retry budget (6); agents may file into the agent-writable lists, and nowhere else (3) |

@@ -21,7 +21,7 @@ assets/
   hooks/guard-main.py         the PreToolUse guard; reads .quarterdeck.json at runtime
   tools/                      check-tests-first.py, check-pr-body.py, doctor.py
   templates/                  claude-block.md, boards/*.md, ci/quarterdeck.yml, pull_request_template.md,
-                              ci/mutation.yml — a seed for the main-branch mutation run, offered in Step 9,
+                              ci/mutation.yml — a seed for a mutation run dispatched by hand, offered in Step 9,
                               diagrams.md — a starter diagram registry, offered in Step 11, never installed by default
 ```
 
@@ -107,17 +107,21 @@ Ask, in this order, skipping nothing:
    the seven statuses `open, refine, todo, in progress, in review, done, closed`; the **lists an
    agent may create tasks in** (default `Bugs, Open decisions`).
 5. **Commands**: check, test, mutation (empty if none), architecture-record render (empty if
-   none) — each with the exit code you observed.
+   none) — each with the exit code you observed. With a mutation command, name its floor: the
+   number the tool fails below, kept in the tool's own configuration, never in the manifest.
+   `/milestone-code-review` reads it there. Setup does not measure it; Step 11 asks the owner to
+   set it.
 6. **`core_dir`** — the pure, deterministic directory mutation testing is scoped to (empty if
    none yet).
 7. **Test globs** — with the match counts from Step 1, and the source directories they were
    checked against.
 8. **Agent signature** for `Co-Authored-By:` (default `Claude <noreply@anthropic.com>`).
 9. **CI**: write the GitHub Actions workflow? (default yes when `.github/workflows/` exists; for
-   another CI system, see Step 9). When there is a mutation command, also: seed the workflow that
-   runs it on the main branch after a merge? (default yes on GitHub Actions). If the project's CI
-   already runs mutation on pull requests, say so — that job is the project's, and moving it is
-   the owner's call.
+   another CI system, see Step 9). When there is a mutation command, also: seed a workflow that
+   runs it when dispatched by hand? (default no — the full run is `/milestone-code-review`'s, on a
+   local machine, and a run in CI is a second measurement, not the same one). If the project's CI
+   already runs mutation on pull requests or on every push, say so — that job is the project's,
+   and moving it is the owner's call.
 10. **Sources of truth** — confirm or edit the four default rows, and add any domain the
     project has that these do not cover (a data model document, a UI spec, a compliance
     document). The code row is added by you and is not up for discussion:
@@ -265,8 +269,8 @@ this step: a hook that is wired but never refuses anything is a rule that does n
 ### Step 9 — CI
 
 **Goal.** The two pull-request gates — first commit is tests only; the four sections present —
-run on every pull request. When the project has a mutation command, its score runs on the main
-branch after a merge, filtered to what the score depends on (workflow.md section 9).
+run on every pull request. When the project has a mutation command and the owner wants it, a
+workflow runs it when dispatched by hand (workflow.md section 9).
 
 **Do.**
 - GitHub Actions and the owner said yes: copy `$QD/templates/ci/quarterdeck.yml` to
@@ -284,20 +288,16 @@ seed: skipped when the file exists, never touched by an upgrade, never checked b
 
 | Placeholder | Value |
 |---|---|
-| `{{main_branch}}`, `{{core_dir}}`, `{{mutation}}` | From the manifest |
+| `{{core_dir}}`, `{{mutation}}` | From the manifest |
 | `{{setup}}` | The steps that install the toolchain and the dependencies, indented as steps. Copy them from the project's existing CI job that runs the check command; with none, the ecosystem's official setup action and its lockfile install (`npm ci`, `pip install -r …`, `mix deps.get`, `go mod download`) |
-| `{{paths}}` | One `      - '<glob>'` line each: `<core_dir>/**`; every directory `core_dir` imports from — read its imports, do not guess; every manifest test glob; the mutation tool's and the test runner's configuration files, the compiler configuration, the dependency manifest and lockfile, the toolchain version file; `.github/workflows/mutation.yml` |
 
-For another CI system, translate it the same way — trigger on the main branch only, the same path
-list — and tell the owner the job is theirs to maintain. Without a mutation command, skip this;
+For another CI system, translate it the same way — a manual trigger only — and tell the owner the
+job is theirs to maintain. Without a mutation command, skip this;
 Step 11 brings it back.
 
 **Validate.** GitHub: `cmp` the gates workflow against the template. Other CI: `grep` shows the CI
 config referencing both `check-tests-first.py` and `check-pr-body.py`. Mutation workflow, when
-written: `grep -c '{{' .github/workflows/mutation.yml` prints `0`, and every entry under `paths`
-matches at least one tracked file — `git ls-files ':(glob)<entry>'` prints something for each, the
-workflow file itself excepted until it is committed. A filter that matches nothing is a run that
-never happens.
+written: `grep -c '{{' .github/workflows/mutation.yml` prints `0`.
 
 ### Step 10 — Doctor
 
@@ -323,8 +323,10 @@ silence.
 3. Add the language's dead-code tool to the check command twice — plainly, and a second time
    over the project without its tests, with every script the project runs that is not a test
    named as an entry of that run (workflow.md section 9) — and the boundary lint; add mutation
-   testing on `core_dir`, and once it exists, set `commands.mutation` and seed its main-branch
-   workflow (Step 9). Point at the README's *Tools by language* table for this ecosystem.
+   testing on `core_dir`, and once it exists, set `commands.mutation`. Set its floor — the
+   tool's own fail-below threshold — to what the first full run measures; from then on only the
+   owner moves it. Seed the manual workflow (Step 9) only if wanted. Point at the README's *Tools
+   by language* table for this ecosystem.
 4. Validate every gate that reports a number against a case with a known answer: plant one
    test-only module — its import wrapped over several lines — one mutant, one boundary
    violation, and watch each fail.
@@ -393,8 +395,18 @@ precondition.
    like any shipped file. Nothing else is to be done: the skill reads the manifest as it stands,
    files only into `board.lists` and only what the owner picks, and is run by hand at a milestone
    boundary — nothing in the workflow calls it.
-10. Set `quarterdeck` in the manifest to `$QD/VERSION`.
-11. `doctor` exits `0`. Show `git status --short`. Do not commit.
+10. **0.6.0 moved mutation to the milestone code review.** `/implement` runs no mutation unless a
+    task's *Verification* lists a run, scoped to the files it fixes; `/milestone-code-review` runs
+    it in full once a milestone. The shipped files that say so — `workflow.md`,
+    `task-template.md`, both skills — are overwritten in step 3 as usual, and the block re-renders
+    in step 4. The tool's threshold is now a fixed floor that only the owner moves: tell them so,
+    and leave its number as it is. A seeded `.github/workflows/mutation.yml` that still runs after
+    every merge comes to the new shape by removing its `push` trigger, which is the owner's call:
+    point at workflow.md section 9 and leave the file alone. A task already in `todo` whose
+    *Verification* lists a full run still runs it, unless the owner edits the task. The manifest
+    does not change.
+11. Set `quarterdeck` in the manifest to `$QD/VERSION`.
+12. `doctor` exits `0`. Show `git status --short`. Do not commit.
 
 Seeded files are never touched by an upgrade. If a seed's template changed upstream, tell the
 owner what changed and leave the merge to them.
@@ -448,7 +460,7 @@ end says which are answered mechanically and which only by prose). Change nothin
 | `main_branch`, `task_prefix` | the hook, `/implement`, `doctor`; `/milestone-code-review` reads `main_branch` |
 | `docs_dir`, `adr_dir`, `domain_doc` | the skills, `doctor` |
 | `board.*` | the skills (through `board.md`), `doctor` |
-| `commands.*`, `core_dir`, `agent_signature` | `/implement`; `/retro` reads `commands.check`, `commands.mutation` and `core_dir`; `/milestone-code-review` reads `commands.check` |
+| `commands.*`, `core_dir`, `agent_signature` | `/implement`; `/retro` reads `commands.check`, `commands.mutation` and `core_dir`; `/milestone-code-review` reads `commands.check` and `commands.mutation` |
 | `test_globs` | `check-tests-first.py`, `/implement`, `/milestone-code-review`, `doctor` |
 | `ci`, `sources`, `quarterdeck` | `doctor`; `sources` also renders the instruction block |
 

@@ -47,7 +47,7 @@ flowchart TD
     idea([An idea lands on the board as open])
     refine["/refine<br/>The agent reads every source it can, then interviews you<br/>one round at a time. Architectural answers become ADR drafts;<br/>rule changes become edits to the domain document."]
     approve{{"You approve the specification<br/>— the last gate before code"}}
-    impl["/implement<br/>pre-flight · task branch · failing tests first · implement ·<br/>check chain · mutation score · pull request that says what the change means"]
+    impl["/implement<br/>pre-flight · task branch · failing tests first · implement ·<br/>check chain · pull request that says what the change means"]
     review{{"You read the diff<br/>and merge by hand"}}
     notes["Wrong even though the spec was approved?<br/>One line in agent-notes.md. What recurs becomes a rule."]
 
@@ -109,7 +109,7 @@ stateDiagram-v2
 | First commit on a branch is failing tests only | **CI** — `check-tests-first` |
 | The four sections of the pull request body present | **CI** — `check-pr-body` |
 | Dead files, unused dependencies, layer boundaries | **Check command** — your language's tools ([table below](#tools-by-language)) |
-| Tests that miss wrong answers | **Mutation command** — run by `/implement` before review, and by **CI on the main branch** after the merge, only when the push touched what the score depends on |
+| Tests that miss wrong answers | **`/milestone-code-review`** — one full run of the mutation command per milestone, against a fixed floor; its score and survivors are findings you pick from |
 | Junk no tool can decide — reached, but not needed | **`/milestone-code-review`** — run by hand at a milestone boundary; it proposes, and you pick what is filed |
 | Source precedence, the three tiers, the retry budget, never weakening a test | **Agent instructions** — judgement, named honestly as prose |
 
@@ -132,7 +132,7 @@ stateDiagram-v2
 | Agent instructions | a block in `CLAUDE.md` / `AGENTS.md` | The rules no tool can enforce, the sources-of-truth table, the check command, the board |
 | Pull request template | `.github/pull_request_template.md` | The four sections, empty |
 | CI | `.github/workflows/quarterdeck.yml` | The two pull-request checks, if you say yes |
-| Mutation CI | `.github/workflows/mutation.yml` | The mutation score on the main branch after a merge, filtered by path — seeded from a template if you have a mutation command and say yes; yours from then on |
+| Mutation CI | `.github/workflows/mutation.yml` | A mutation run dispatched by hand — seeded from a template if you have a mutation command and say yes; yours from then on |
 | The manifest | `.quarterdeck.json` | The one binding between the doctrine and your project: branches, commands, test globs, board, sources of truth. The hook, the checks and the skills read it at runtime |
 
 The doctrine, the skills, the hook and the checks are **identical in every project** — nothing in
@@ -185,8 +185,9 @@ Then, by hand — the skill prints this list with your project's names in it:
    draft it if you ask.
 2. Configure the board: the seven statuses and the agent-writable lists.
 3. Add your dead-code tool to the check command twice — plainly, and a second time without the
-   tests — and your boundary lint; add mutation testing on the pure part of the code, and let the
-   skill seed the workflow that runs it on the main branch.
+   tests — and your boundary lint; add mutation testing on the pure part of the code, and set its
+   floor to what the first full run measures. The skill seeds a workflow that runs it by hand, if
+   you want one.
 4. Validate every gate that reports a number: plant one mutant, one test-only module with its
    import wrapped over several lines, one boundary violation, and watch each fail.
 5. Put one small task through `open → refine → todo → in progress → in review → done`. Nothing is
@@ -258,11 +259,12 @@ the check command should chain them:
 | Swift | muter | periphery | `periphery scan --exclude-tests` | a SwiftLint custom rule |
 | Any of Go, TS, Python, Java | — | — | — | lintel (`arch.yaml`, tree-sitter) |
 
-Scope mutation testing to the part of the code that is pure and deterministic — a full run should
-take seconds, or it will be turned off. Record the scope in an ADR, set the threshold to what it
-measures on day one, and let it ratchet upward only. Run it before review, and in CI on the main
-branch after a merge — not on the pull request — filtered to the paths the score depends on, so a
-documentation merge costs nothing.
+Scope mutation testing to the part of the code that is pure and deterministic. Record the scope in
+an ADR, and set the tool's threshold to what the first full run measures: a fixed floor that only
+you move. `/milestone-code-review` runs it in full once a milestone, and its score and survivors
+are findings; a task runs it only when it fixes a survivor, over the files it fixes. Not on the
+pull request and not after every merge: a run grows with the code it scores, and paid once a
+milestone it stays worth its minutes.
 
 The column *without the tests* is the rule against invented work: run over the project with its
 tests left out, the dead-code tool reports a module or an export that only tests reach. Name every

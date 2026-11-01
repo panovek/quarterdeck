@@ -1,6 +1,6 @@
 ---
 name: milestone-code-review
-description: Review a whole repository, as it is on its main branch, for junk no tool can decide - an export nothing reaches that the dead-code tool cannot see, a parameter always passed one value, a field nothing reads, a rule worked out in a second place, a stale comment, a test that proves nothing, a word the project bans, an asset nothing uses. Junk, not bugs; the whole tree, not a diff. Proposes findings and files only what the user picks. Run by the owner at a milestone boundary.
+description: Review a whole repository, as it is on its main branch, for junk no tool can decide - an export nothing reaches that the dead-code tool cannot see, a parameter always passed one value, a field nothing reads, a rule worked out in a second place, a stale comment, a test that proves nothing, a word the project bans, an asset nothing uses - and runs the project's mutation testing once, in full, so its score and survivors are findings too. Junk, not bugs; the whole tree, not a diff. Proposes findings and files only what the user picks. Run by the owner at a milestone boundary.
 disable-model-invocation: true
 ---
 
@@ -26,6 +26,7 @@ If `.quarterdeck.json` is in the repository root, read it once:
 - `board.lists` — the lists a finding may be filed in.
 - `test_globs` — what is a test.
 - `commands.check` — the checks already run; nothing they catch is proposed.
+- `commands.mutation` — the full mutation run, if the project has one.
 
 Without it, find the same facts, and note where each came from:
 
@@ -37,6 +38,8 @@ Without it, find the same facts, and note where each came from:
 | The rules | The agent instructions (`CLAUDE.md`, `AGENTS.md`) and what they point to: the architecture decision records, the design or domain document, its glossary |
 | What is already checked | The check script or CI workflow, and the configuration of every tool it runs — linter, type checker, dead-code tool |
 | The board | The tracker connector in this session, and the rule that says where an agent may file what it finds |
+| The mutation run | A script in the package manifest that runs a mutation tool. Without one there is none, and the run is skipped |
+| The mutation floor | The score the mutation tool fails below, read from its configuration |
 
 Ask the user for anything the repository does not answer. Never guess where a finding is filed.
 
@@ -55,6 +58,12 @@ If either check fails, stop and name the files that differ: the review is of wha
 finding must point at a line that exists on the main branch. Documentation is never reviewed. The
 design document and the open tasks are read only to clear a candidate of check b, and for the
 rules of checks c and f.
+
+Once both checks pass, start the full mutation run in the background, on this tree, with its output
+in a file outside the repository, and read the other checks while it runs. It is a full run every
+time, never the tool's incremental mode. The run writes only where its configuration sends its
+working files; a score below the floor makes it exit non-zero, which is a finding, not a failure of
+the review.
 
 ## 2. Read what is already filed
 
@@ -116,8 +125,16 @@ finished task as history is not stale, and nor is one whose task the board no lo
 
 **e · A test that proves nothing.** A test that asserts a constant or a data table at a copy of
 itself, through no code of the project. A test with no assertion, or one that asserts what its own
-mock returns. Mutation testing, where the project runs it, sees some of these — only inside its
-scope.
+mock returns.
+
+The mutation run, when it has finished, sees the rest inside its scope — a mutant no test fails on:
+
+- **The survivors of a source file are one finding**, since one strengthened test kills them. Its
+  key is `e · <file> · mutation`; its likely fix names the test to strengthen. A survivor no input
+  can tell from the original is equivalent, and still a finding: its likely fix is a disable
+  comment that names the mutator and carries the proof.
+- **A score below the floor is a finding of its own**, keyed `e · mutation score`. It does not
+  block the milestone from closing; the user decides what is filed.
 
 **f · A word the project bans.** If the glossary or the agent instructions name words not to use,
 find them in identifiers, strings and comments. A word with an everyday meaning is read in context:
@@ -142,7 +159,10 @@ for f in sys.argv[1:]:
 
 ## 4. Propose
 
-One numbered list in the chat, in the order of the checks. Findings one fix removes are one item.
+The proposal opens with the mutation run's score — the line the tool gives for all files — and the
+SHA under review, whatever the score; if the project has no mutation run, or it did not finish, it
+says so in that place. Then one numbered list in the chat, in the order of the checks. Findings one
+fix removes are one item.
 
 ```markdown
 ### 1. <the junk, in one line>
@@ -154,7 +174,7 @@ One numbered list in the chat, in the order of the checks. Findings one fix remo
 
 After the list, one line for each finding left out because an open task describes it, with that
 task's link. If nothing was found, say so and stop — a list padded to look useful is worse than no
-list.
+list. The score still opens it.
 
 Ask which to file, by number. Wait. What is not picked is not recorded anywhere, and is proposed
 again at the next review.

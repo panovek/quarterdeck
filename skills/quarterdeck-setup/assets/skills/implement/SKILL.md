@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implement one approved task end to end - pre-flight readiness check, task branch, tests first, the check chain, mutation testing, the architecture record, and a pull request that says what the change means. Use when asked to implement a task that is in todo.
+description: Implement one approved task end to end - pre-flight readiness check, task branch, tests first, the check chain, the architecture record, and a pull request that says what the change means. Use when asked to implement a task that is in todo.
 ---
 
 # Implement a task
@@ -19,7 +19,7 @@ from it:
 | `docs_dir` | `<docs_dir>/workflow.md` is the rulebook; `<docs_dir>/task-template.md` the form; `<docs_dir>/board.md` **the board procedures — read it before touching the board** |
 | `adr_dir` | Decision records |
 | `domain_doc` | The owner of product rules, formulas and constants (`none yet` is possible) |
-| `commands.check`, `commands.test`, `commands.mutation`, `commands.arch` | The check chain, the tests alone, mutation testing, the architecture-record renderer. Empty means the project has none |
+| `commands.check`, `commands.test`, `commands.mutation`, `commands.arch` | The check chain, the tests alone, a run scoped to the task's files when *Verification* lists one, the architecture-record renderer. Empty means the project has none |
 | `core_dir` | The pure, deterministic area mutation testing is scoped to |
 | `test_globs` | What counts as a test file — the tests-first check uses the same list |
 | `agent_signature` | The `Co-Authored-By:` line on every commit |
@@ -84,8 +84,12 @@ dead code.
 
 ## 5. Verify
 
-Run what the specification's *Verification* field lists — at minimum `commands.check`, and
-`commands.mutation` when the project has one and the task touches `core_dir`.
+Run what the specification's *Verification* field lists — at minimum `commands.check`.
+
+**Mutation runs only when *Verification* lists a run.** The full run is the milestone code
+review's, once a milestone. A task filed from a survivor lists one: `commands.mutation`, scoped to
+the files it fixes, the way the project's mutation tool narrows a run. Kill its survivors by
+strengthening a test, and never disable a mutant that is not proven equivalent.
 
 **Three consecutive failures of the same failure and you stop**: comment on the task with what you
 tried, move it to `refine`, open nothing. Different errors in sequence are progress; the same
@@ -131,15 +135,18 @@ carries its skeleton. It is short — four sections:
 - **Task** — id, name, link.
 - **What changed** — the idea of the change, in a few sentences or a short list: what the system
   can now do that it could not, and how. **Not a list of files** — the reviewer has the diff open.
+  When *Verification* listed a mutation run, it ends with the score: the run's all-files score,
+  and the files that keep a survivor.
 - **Decisions made (tier 2)** — each choice with the rejected alternative. Mandatory even when it
   reads `none`.
 - **Not done** — what was deliberately left out, and why.
 
 Nothing else. Do not restate the acceptance criteria — they are the tests on the branch. Do not
-list verification commands or results — the CI check on the pull request is the result. Do not
-narrate the architecture verdict — an updated architecture image in the diff is the change, and
-its absence is "no change". `tools/quarterdeck/check-pr-body.py` fails the pull request when a
-section is missing.
+list verification commands or results — the CI check on the pull request is the result; a
+mutation score, when *Verification* listed a run, is the one result the body states, because no
+CI check runs it. Do not narrate the architecture verdict — an updated architecture image in the
+diff is the change, and its absence is "no change". `tools/quarterdeck/check-pr-body.py` fails
+the pull request when a section is missing.
 
 Then comment the pull request link on the task and move it to `in review`.
 

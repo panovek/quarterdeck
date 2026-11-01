@@ -26,7 +26,7 @@ without checking anything.
 
 **Verification.**
 - `<check command>`
-- `<mutation command>` <only when the task touches the mutation-tested area>
+- A mutation run over the files the task fixes <only in a task filed from a survivor of the milestone code review>
 - <anything else this task needs>
 
 **Open questions.**
@@ -63,8 +63,10 @@ If a criterion genuinely cannot be expressed that way, the task is not ready —
 `refine`, or the criterion is dropped and named in Out of scope.
 
 **Verification** is the exact command list the agent runs before requesting review. It exists so
-that done is an exit code, not a judgement; CI repeats them — the check command on the pull
-request, the mutation command on the main branch after the merge.
+that done is an exit code, not a judgement; CI repeats the check command on the pull request, so
+its results are not restated in the body. The full mutation run is the milestone code review's,
+once a milestone; a task lists a run only when it fixes a survivor, scoped to its files. No CI
+check runs it, so its score is the one result the body states.
 
 **Open questions** must read `none` for the task to leave `refine`. Anything else here is the
 reason it cannot.
@@ -107,11 +109,9 @@ came from, and every acceptance line is a number or a command.
 - [ ] Property: for every `remaining_days` in 1..`cycle_days`, `credit` and `charge` are non-negative and never exceed the respective full price — *PRD 4.2*
 - [ ] `grep -rn "Date.now\|new Date()" src/billing` prints nothing — *ADR-0007*
 - [ ] `npm run check` passes — *workflow 9*
-- [ ] `npm run test:mutation` reports a score ≥ 85 and no lower than the score on the main branch — *ADR-0004*
 
 **Verification.**
 - `npm run check`
-- `npm run test:mutation`
 
 **Open questions.**
 - none

@@ -30,7 +30,7 @@ because no tool can enforce them — they hold only if they are read.
 - **An agent never marks a task done and never closes one.** Those are the owner's.
 - **An agent creates tasks only in {{lists}}.** Nowhere else.
 
-The check chain is `{{check}}`{{#mutation}}; mutation testing is `{{mutation}}`{{/mutation}}.
+The check chain is `{{check}}`{{#mutation}}; mutation testing, run in full at the milestone code review, is `{{mutation}}`{{/mutation}}.
 The board is {{board_name}}; how to read, move and create tasks on it is
 [{{docs_dir}}/board.md]({{docs_dir}}/board.md). **The board is also the plan** — milestones,
 ordering, dependencies and what is next live there, and there is no plan file. The task template is

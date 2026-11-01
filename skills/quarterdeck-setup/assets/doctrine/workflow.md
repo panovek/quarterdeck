@@ -167,7 +167,10 @@ The agent's loop, in order:
    request.
 4. Implement.
 5. Run the check command — typecheck, lint, format, dead code, tests, whatever the project chains.
-6. Run the mutation command where the task touches the mutation-tested area (section 9).
+6. A mutation run (section 9), only when the *Verification* lists one. The full run is the
+   milestone code review's, once a milestone; a task filed from one of its survivors lists a run
+   scoped to the files it fixes. The agent kills that run's survivors by strengthening a test, and
+   never disables a mutant that is not proven equivalent.
 7. **Architecture.** If the project keeps an architecture record, review it against the change
    and, through the project's diagram tool with the diagram's record from the registry, update it
    if the change warrants it. This step is unconditional; its *conclusion* may be "no change", in
@@ -209,9 +212,9 @@ where it starts weakening the test to make the suite green.
 
 The evidence is not in the body. The diff shows what files changed, the image diff of the
 architecture record shows what the architecture did, and the CI check on the pull request runs
-the check command; the mutation score runs on the main branch after the merge (section 9). The
-body says what the diff *means* — the part no tool can show — and nothing a tool already shows.
-`tools/quarterdeck/check-pr-body.py` fails a pull request whose body lacks a section.
+the check command. The body says what the diff *means* — the part no tool can show — and nothing
+a tool already shows. `tools/quarterdeck/check-pr-body.py` fails a pull request whose body lacks
+a section.
 
 ```markdown
 ## Task
@@ -220,6 +223,8 @@ body says what the diff *means* — the part no tool can show — and nothing a 
 ## What changed
 <The idea of the change, in a few sentences or a short list: what the system can now do that it
 could not, and how. Not a list of files — the diff is that list.>
+<When step 6 of section 6 applied: the mutation run's all-files score, and the files that keep a
+survivor.>
 
 ## Decisions made (tier 2)
 - <choice> — chose X over Y because <reason>.
@@ -231,9 +236,11 @@ could not, and how. Not a list of files — the diff is that list.>
 
 Four sections, no more. Acceptance criteria are not restated: they are the tests on the branch,
 and CI ran them. Verification results are not restated: the check on the pull request is the
-result. Architecture is not narrated: an updated architecture image in the diff is the change,
-and its absence is the verdict "no change". If the change is structural and no ADR was added or
-amended, that is a tier-2 decision, and *why not* goes under it.
+result. The one exception is a mutation score, when step 6 of section 6 applied: no CI check runs
+it, so the body states it. The full run's score is not a pull request's: the milestone code review
+opens its proposal with it. Architecture is not narrated: an updated architecture image in the
+diff is the change, and its absence is the verdict "no change". If the change is structural and
+no ADR was added or amended, that is a tier-2 decision, and *why not* goes under it.
 
 The tier-2 section is mandatory even when empty. An explicit "none" is information; a missing
 section is ambiguity.
@@ -247,7 +254,7 @@ Each rule sits on the cheapest surface that can actually enforce it.
 | No commits, pushes, merges or rebases on the main branch; no force-push; no merging a pull request | **Hook** — `.claude/hooks/guard-main.py`, a `PreToolUse` guard that refuses the tool call outright |
 | A module or an export that exists only to be tested | **Check command** — the language's dead-code tool, run a second time over the project without its tests (README, *Tools by language*) |
 | Dead files, unused dependencies | **Check command** — the language's dead-code tool (README, *Tools by language*) |
-| Tests that do not detect a wrong answer | **Mutation command** before review, and **CI on the main branch** after the merge — mutation score on the pure area, threshold ratchets and never falls |
+| Tests that do not detect a wrong answer | **`/milestone-code-review`** — one full run of the mutation command per milestone, on the pure area, against a fixed floor; its score and survivors are findings |
 | Layer boundaries | **Check command** — the language's boundary lint, one rule per ADR |
 | First commit on a branch is failing tests only | **CI on pull requests** — `tools/quarterdeck/check-tests-first.py` |
 | The four sections of the pull request body present | **CI on pull requests** — `tools/quarterdeck/check-pr-body.py` |
@@ -293,17 +300,24 @@ next time.
 
 **Mutation testing.** Line coverage is exactly the metric a model games; mutation score is not,
 because it asks the only question that matters — does this test fail when the answer is wrong?
-Scope it to the part of the code that is pure and deterministic, so a full run takes seconds, and
-record the scope in an ADR so that no agent helpfully widens it. The threshold ratchets upward and
-never falls: a branch that lowers it weakened a test.
+Scope it to the part of the code that is pure and deterministic, and record the scope in an ADR
+so that no agent helpfully widens it. The floor is the mutation tool's own threshold, the score it
+fails below: set once to what the first full run measures, and fixed. Only the owner moves it.
 
-It runs twice, and neither run is on the pull request. The agent runs it before asking for review
-(section 6, step 6). CI runs it again on the main branch after the merge, and only when the push
-touched what the score depends on — the mutated area, what it imports, any test file, the
-toolchain. A merge of documents cannot move the score, and a run that cannot fail is spent
-minutes. The price is named: a branch that lowers the score is caught as a red check on the main
-branch after the merge, not before it; until then the agent's own run is the gate.
-`quarterdeck-setup` seeds the GitHub Actions workflow for this from a template.
+It runs in full once a milestone, inside `/milestone-code-review`, on the tree of the main branch.
+The score opens the review's proposal; each source file's survivors are a finding, and so is a
+score below the floor, which the owner picks from like any other. A task runs it only when its
+*Verification* lists a run — a task filed from one of those survivors, scoped to the files it fixes
+(section 6, step 6) — and states that score in its pull request (section 8). A run in every task
+grows with the area it scores while what it finds shrinks; once a milestone, it is paid once. The
+price is named: a test gap can sit on the main branch for up to a milestone. The tests-first
+commit, table assertions, golden runs and the ban on weakening a test guard a task's tests until
+then.
+
+No pull request runs it, and no push to the main branch does. `quarterdeck-setup` can seed a
+GitHub Actions workflow that runs it when dispatched by hand, and only then: two measurements of
+the same commit, one local and one in CI, have differed, and two numbers that differ cannot be
+compared. The review's local run is the measure.
 
 **A gate is validated against a case with a known answer before its number is believed.** A
 mutation tool that cannot activate mutants under a new test-runner version reports survivors that
@@ -402,5 +416,5 @@ Recorded so that they are not silently reopened.
 | 1 · Building on undecided ground | Definition of ready (4); `refine` as a real status (3); escalation triggers (5); tier 3 stops mid-task (6) |
 | 2 · Losing the thread | Specification approved before code exists (5); ADR required for architectural choices (2, 10); the architecture record, redrawn from its registry record, whose image diff is the per-pull-request verdict (10); the tier-2 decisions log (8) |
 | 3 · Invented work | The dead-code tool run without the tests, on test-only files and exports (9); the same tool run plainly, on dead files and unused dependencies (9); `/milestone-code-review` on what only judgement can see (9); the *Out of scope* field (4); "coverage is never a reason to create a consumer" (9) |
-| 4 · Tests that prove nothing | Mutation score, not coverage (9); table assertions and golden runs (9); tests-first commit as branch evidence (6, 9); the ban on weakening a test (6) |
+| 4 · Tests that prove nothing | Mutation score, not coverage, at each milestone code review (9); table assertions and golden runs (9); tests-first commit as branch evidence (6, 9); the ban on weakening a test (6) |
 | 5 · Silent improvisation when blocked | `waiting_on` checked in pre-flight (4); the three tiers (6); the retry budget (6); agents may file into the agent-writable lists, and nowhere else (3) |
